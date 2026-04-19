@@ -22,6 +22,21 @@ public class Board
         this.convertFENToPosition(FEN);
     }
     
+    private int updateCastlingRights(int start, int end, int flags) {
+        int rights = stateTracker.getCastlingRights();
+        
+        if (gameBoard[end] instanceof King) {
+            if (gameBoard[end].getColor()) rights &= ~0b0011; 
+            else rights &= ~0b1100;
+        }
+        
+        if (start == 56 || end == 56) rights &= ~0b0010;
+        if (start == 63 || end == 63) rights &= ~0b0001;
+        if (start == 0 || end == 0) rights &= ~0b1000;
+        if (start == 7 || end == 7) rights &= ~0b0100;
+        
+        return rights;
+    }
 
     private boolean canMoveInDir(int sq, int dir) {
         int row = sq / 8;
@@ -60,7 +75,13 @@ public class Board
 
         Piece movingPiece = this.gameBoard[startSquare];
         if (movingPiece == null) return;
+
+        int oldEPSquare = stateTracker.getEnPassantSquare();
+        if (oldEPSquare != -1) currentHash ^= Zobrist.enPassantFile[oldEPSquare % 8];
+        currentHash ^= Zobrist.castlingRights[stateTracker.getCastlingRights()];
         currentHash ^= Zobrist.table[Zobrist.getPieceIndex(movingPiece)][startSquare];
+
+        int newEPSquare = -1;
 
         if (flags == Move.EN_PASSANT) {
             int victimSquare = (movingPiece.getColor()) ? endSquare + 8 : endSquare - 8; 
@@ -72,7 +93,13 @@ public class Board
 
             this.stateTracker.pushCapture(victim);
             this.gameBoard[victimSquare] = null;
-        } else { // normal capture
+        }
+        else if (flags == Move.DOUBLE_PAWN) {
+            newEPSquare = (startSquare + endSquare) / 2;
+            currentHash ^= Zobrist.enPassantFile[newEPSquare % 8];
+            this.stateTracker.pushCapture(null);
+        }
+        else { // normal capture
             Piece target = this.gameBoard[endSquare];
             if (target != null) {
                 currentHash ^= Zobrist.table[Zobrist.getPieceIndex(target)][endSquare];
@@ -106,12 +133,10 @@ public class Board
         if (flags == Move.PROMOTION_QUIET || flags == Move.PROMOTION_CAPTURE) {
             Piece queen = new Queen(movingPiece.getColor());
             this.gameBoard[endSquare] = queen;
-
             this.stateTracker.addNonPawn(movingPiece.getColor());
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(queen)][endSquare];
         } else {
             this.gameBoard[endSquare] = movingPiece;
-
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(movingPiece)][endSquare];
         }
 
@@ -119,9 +144,12 @@ public class Board
             stateTracker.setKingSquare(movingPiece.getColor(), endSquare); 
         }
 
+        int newCastlingRights = updateCastlingRights(startSquare, endSquare, flags);
+        currentHash ^= Zobrist.castlingRights[newCastlingRights];
+
         currentHash ^= Zobrist.sideToMove;
+        this.stateTracker.pushState(newEPSquare, newCastlingRights);
         this.stateTracker.pushHash(currentHash);
-        
         this.stateTracker.addMovedPiece(this.gameBoard[endSquare]); 
         this.stateTracker.changePly(1);
         this.stateTracker.addMovetoRecord(move);
@@ -133,10 +161,23 @@ public class Board
         int end = Move.getEnd(move);
         int flags = Move.getFlags(move);
 
+        this.stateTracker.switchTurn();
+        currentHash ^= Zobrist.sideToMove;
+
+        int epBeforePop = stateTracker.getEnPassantSquare();
+        if (epBeforePop != -1) currentHash ^= Zobrist.enPassantFile[epBeforePop % 8];
+        currentHash ^= Zobrist.castlingRights[stateTracker.getCastlingRights()];
+
+        this.stateTracker.popState();
+        this.stateTracker.popHash();
+        this.stateTracker.popMovedPiece();
+        this.stateTracker.changePly(-1);
+
+        ArrayList<Integer> record = this.stateTracker.getMoveRecord();
+        if (!record.isEmpty()) record.remove(record.size() - 1);
+
         Piece movedPiece = this.gameBoard[end];
         Piece capturedPiece = this.stateTracker.popCapture();
-
-        currentHash ^= Zobrist.sideToMove;
 
         if (movedPiece != null) {
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(movedPiece)][end];
@@ -154,7 +195,6 @@ public class Board
                 stateTracker.setKingSquare(movedPiece.getColor(), start);
             }
         }
-
 
         if (flags == Move.EN_PASSANT) {
             int victimSquare = (movedPiece.getColor()) ? end + 8 : end - 8;
@@ -174,10 +214,8 @@ public class Board
             int rookStart = start + 3;
             int rookEnd = start + 1;
             Piece rook = this.gameBoard[rookEnd];
-            
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(rook)][rookEnd];
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(rook)][rookStart];
-            
             this.gameBoard[rookStart] = rook;
             this.gameBoard[rookEnd] = null;
         } else if (flags == Move.LONG_CASTLE) {
@@ -191,15 +229,6 @@ public class Board
             this.gameBoard[rookStart] = rook;
             this.gameBoard[rookEnd] = null;
         }
-
-        this.stateTracker.popHash();
-        this.stateTracker.popMovedPiece();
-        
-        ArrayList<Integer> record = this.stateTracker.getMoveRecord();
-        if (!record.isEmpty()) record.remove(record.size() - 1);
-
-        this.stateTracker.switchTurn();
-        this.stateTracker.changePly(-1);
     }
 
     public void makeNullMove() {

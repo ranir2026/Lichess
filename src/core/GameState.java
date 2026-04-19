@@ -12,6 +12,9 @@ public class GameState {
     private ArrayList<Piece> movedPieces;
     private ArrayList<Piece> capturedPieceHistory;
     private ArrayList<Long> hashHistory;
+
+    private ArrayList<Integer> epSquareHistory;
+    private ArrayList<Integer> castlingHistory;
     
     private int whiteKingSquare;
     private int blackKingSquare;
@@ -26,6 +29,9 @@ public class GameState {
         this.moveRecord = new ArrayList<>();
         this.capturedPieceHistory = new ArrayList<>();
         this.hashHistory = new ArrayList<>();
+
+        this.epSquareHistory = new ArrayList<>();
+        this.castlingHistory = new ArrayList<>();
 
         this.whiteNonPawns = 0;
         this.blackNonPawns = 0;
@@ -52,6 +58,16 @@ public class GameState {
         this.movedPieces.add(piece);
     }
 
+    public int getEnPassantSquare() {
+        if (epSquareHistory.isEmpty()) return -1;
+        return epSquareHistory.get(epSquareHistory.size() - 1);
+    }
+
+    public int getCastlingRights() {
+        if (castlingHistory.isEmpty()) return 0;
+        return castlingHistory.get(castlingHistory.size() - 1);
+    }
+
     public boolean searchMovedPiecesForPiece(Piece piece) {
         if (this.movedPieces.contains(piece)) return true;
 
@@ -63,6 +79,18 @@ public class GameState {
             return whiteNonPawns;
         } else {
             return blackNonPawns;
+        }
+    }
+
+    public void pushState(int epSquare, int castlingRights) {
+        this.epSquareHistory.add(epSquare);
+        this.castlingHistory.add(castlingRights);
+    }
+
+    public void popState() {
+        if (epSquareHistory.size() > 1) { // Keep the initial state
+            this.epSquareHistory.remove(epSquareHistory.size() - 1);
+            this.castlingHistory.remove(castlingHistory.size() - 1);
         }
     }
 
