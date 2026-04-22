@@ -2,8 +2,8 @@ import java.util.Scanner;
 
 import core.Board;
 import core.Move;
-import engines.FirstEngine;
 import engines.KillersAndLMRBot;
+// import engines.KillersAndLMRBot;
 
 import java.util.ArrayList;
 
@@ -40,7 +40,7 @@ public class UciInterface {
             } 
             // else if (input.startsWith("go")) {
             //     // Initialize engine with current board and correct turn color
-            //     engine = new FirstEngine(board, board.getStateTracker().getTurn());
+            //     engine = new KillersAndLMRBot(board, board.getStateTracker().getTurn());
                 
             //     // Depth 3 search as seen in your previous main method
             //     int bestMoveInt = engine.getBestMove(8); 

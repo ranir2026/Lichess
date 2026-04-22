@@ -365,6 +365,13 @@ public class KillersAndLMRBot {
     }
 
     public int getBestMove(int TotalTimeLeft, int increment) {
+        if (!this.color && this.game.getStateTracker().getPly() == 1) {
+            int lastMove = this.game.getStateTracker().getMoveRecord().get(0);
+            if (Move.getStart(lastMove) == 52 && Move.getEnd(lastMove) == 36) {
+                return Move.encode(12, 28, Move.QUIET_MOVE);
+            }
+        }
+
         int maxDepth = 12;
         long startTime = System.currentTimeMillis();
         long timeLimit = (TotalTimeLeft/40) + increment;
@@ -377,8 +384,8 @@ public class KillersAndLMRBot {
             ArrayList<Integer> moves = this.game.getLegalMoves(this.game.getStateTracker().getTurn());
             if (moves.isEmpty()) break;
 
-            double alpha = Double.NEGATIVE_INFINITY;
-            double beta = Double.POSITIVE_INFINITY;
+            double alpha = -5 * MATE_SCORE;
+            double beta = 5 * MATE_SCORE;
             
             int bestMoveThisIteration = -1;
             double bestScoreThisIteration = Double.NEGATIVE_INFINITY;

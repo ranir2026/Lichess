@@ -1,12 +1,3 @@
-/*
-Forked on 4-18-2026 @ 9:49 PM.
-- Implemented Late Move Reductions
-- Implemented Killer Moves
-- Fixed OrderMoves to utilize Transposition Tables
-
-Beat KingEndgamePSTBot --> W: 464, L: 144, D: 392
-*/ 
-
 package engines;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +5,7 @@ import core.*;
 import pieces.*;
 
 public class FirstEngine {
-    public long nodesSearched = 0; // for optimization testing
+    public long nodesSearched = 0;
 
     // Piece values
     private static final double PAWN = 100.0;
@@ -191,7 +182,7 @@ public class FirstEngine {
         return (7 - (i / 8)) * 8 + (i % 8);
     }
 
-    public double Search(int depth, double alpha, double beta, int ply) {
+    public double Search(int depth, double alpha, double beta, int ply, boolean allowNMP) {
         nodesSearched++;
         long hash = this.game.getCurrentHash();
 
@@ -227,6 +218,21 @@ public class FirstEngine {
             }
         }
 
+        // Null move pruning
+        if (allowNMP && depth >= 3 && !this.game.isInCheck(isWhiteTurn) && this.game.getStateTracker().getNonPawnCount() > 2) {
+            double staticEval = Evaluate();
+            if (staticEval >= beta) {
+                int R = (depth >= 10) ? depth/6 + 1 : depth/4 + 2;
+                this.game.makeNullMove();
+                double nullScore = -Search(depth - 1 - R, -beta, -beta + 1, ply + 1, false);
+                this.game.unmakeNullMove();
+                if (nullScore >= beta) {
+                    double verifyScore = Search(depth - 1, alpha, beta, ply, false);
+                    if (verifyScore >= beta) return beta;
+                }
+            }
+        }
+
         double originalAlpha = alpha;
         int bestMoveFound = -1;
         int[] orderedMoves = OrderMoves(moves, ttMove, ply);
@@ -239,34 +245,29 @@ public class FirstEngine {
 
             double score;
 
-            int flags = Move.getFlags(move);
-            boolean isCapture = (flags & Move.CAPTURE) != 0 || (flags & Move.EN_PASSANT) != 0;
-            boolean isPromotion = (flags & Move.PROMOTION_QUIET) != 0 || (flags & Move.PROMOTION_CAPTURE) != 0;
+            boolean isCapture = Move.isCapture(move);
+            boolean isPromotion = (Move.getFlags(move) & Move.PROMOTION_QUIET) != 0;
             boolean inCheck = this.game.isInCheck(isWhiteTurn);
 
             if (depth >= 3 && movesSearched > 4 && !isCapture && !isPromotion && !inCheck) {
                 int reduction = LMR_TABLE[depth][Math.min(movesSearched, 63)];
                 int newDepth = Math.max(1, depth - 1 - reduction);
-                
-                score = -Search(newDepth, -(alpha + 1), -alpha, ply + 1);
-                
+                score = -Search(newDepth, -(alpha + 1), -alpha, ply + 1, true);
                 if (score > alpha) {
-                    score = -Search(depth - 1, -beta, -alpha, ply + 1);
+                    score = -Search(depth - 1, -beta, -alpha, ply + 1, true);
                 }
             } else {
-                score = -Search(depth - 1, -beta, -alpha, ply + 1);
+                score = -Search(depth - 1, -beta, -alpha, ply + 1, true);
             }
 
             this.game.unmakeMove(move);
 
             if (score >= beta) {
                 transpositionTable[ttIndex] = new TranspositionTableEntry(hash, beta, depth, TranspositionTableEntry.LOWER_BOUND, move);
-                
-                if (this.game.getStateTracker().getPly() < 64 && !Move.isCapture(move) && move != killerMoves[this.game.getStateTracker().getPly()][0]) {
-                    killerMoves[this.game.getStateTracker().getPly()][1] = killerMoves[this.game.getStateTracker().getPly()][0];
-                    killerMoves[this.game.getStateTracker().getPly()][0] = move;
+                if (ply < 64 && !Move.isCapture(move) && move != killerMoves[ply][0]) {
+                    killerMoves[ply][1] = killerMoves[ply][0];
+                    killerMoves[ply][0] = move;
                 }
-
                 return beta;
             }
 
@@ -370,7 +371,7 @@ public class FirstEngine {
     }
 
     public int getBestMove(int TotalTimeLeft, int increment) {
-        int maxDepth = 12;
+        int maxDepth = 20;
         long startTime = System.currentTimeMillis();
         long timeLimit = (TotalTimeLeft/40) + increment;
 
@@ -395,7 +396,7 @@ public class FirstEngine {
             for (int move : orderedMoves) {
                 this.game.makeMove(move);
                 // Search the next level
-                double score = -Search(currentDepth - 1, -beta, -alpha, 1);
+                double score = -Search(currentDepth - 1, -beta, -alpha, 1, true);
                 this.game.unmakeMove(move);
 
                 if (score > bestScoreThisIteration) {

@@ -33,7 +33,7 @@ public class MatchRunner {
             oldNodes += oldBot.nodesSearched;
             
             // Overwrites the same line in the console (\r)
-            System.out.print(String.format("\rProgress: [%d/%d] %.1f%% | New: %d | Old: %d | Draws: %d | Average New Nodes: %.3e | Average Old Nodes: %.3e", 
+            System.out.print(String.format("\rProgress: [%d/%d] %.1f%% | New: %d | Old: %d | Draws: %d | Nodes: New %.3e | Old %.3e |", 
                 completed, totalGames, percent, newEngineWins, oldEngineWins, draws, (double)newNodes/completed, (double)oldNodes/completed));
         }
 
@@ -52,9 +52,9 @@ public class MatchRunner {
 
             // Determine whose turn it is and get their best move
             if (isWhiteTurn == newBot.getColor()) {
-                move = newBot.getBestMove(3000, 0);
+                move = newBot.getBestMove(3200, 0);
             } else {
-                move = oldBot.getBestMove(3000, 0);
+                move = oldBot.getBestMove(3200, 0);
             }
 
             // Game Over Detection: No legal moves left

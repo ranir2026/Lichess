@@ -1,7 +1,7 @@
 package core;
 import javax.swing.*;
 
-import engines.FirstEngine;
+import engines.KillersAndLMRBot;
 import pieces.Piece;
 
 import java.awt.event.MouseEvent;
@@ -19,7 +19,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
     private int displaySize = windowHeight / 8;
     
     private Board game;
-    private FirstEngine bot;
+    private KillersAndLMRBot bot;
     private boolean isBotThinking = false;
 
     // drag n drop functinos
@@ -30,7 +30,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
 
     private java.util.ArrayList<Integer> currentLegalMoves = new java.util.ArrayList<>();
 
-    public ShapeDrawing(Board game, FirstEngine bot) {
+    public ShapeDrawing(Board game, KillersAndLMRBot bot) {
         this.game = game;
         this.bot = bot;
         try {
@@ -198,7 +198,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
     @Override public void mouseExited(MouseEvent e) {}    
     @Override public void mouseClicked(MouseEvent e) {}
 
-    private void makeBotMove(FirstEngine bot) {
+    private void makeBotMove(KillersAndLMRBot bot) {
         // We use a separate thread so the bot can think without freezing the GUI
         isBotThinking = true;
         new Thread(() -> {
@@ -223,7 +223,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
         Board game = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-        FirstEngine bot = new FirstEngine(game, false);
+        KillersAndLMRBot bot = new KillersAndLMRBot(game, false);
         
         frame.getContentPane().add(new ShapeDrawing(game, bot));
         frame.setVisible(true);
