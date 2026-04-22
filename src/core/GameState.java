@@ -88,7 +88,7 @@ public class GameState {
     }
 
     public void popState() {
-        if (epSquareHistory.size() > 1) { // Keep the initial state
+        if (!epSquareHistory.isEmpty()) { // Keep the initial state
             this.epSquareHistory.remove(epSquareHistory.size() - 1);
             this.castlingHistory.remove(castlingHistory.size() - 1);
         }

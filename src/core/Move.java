@@ -19,6 +19,7 @@ public class Move {
     public static int getFlags(int move) { return move & 0b1111000000000000; }
     
     public static boolean isCapture(int move) { 
-        return (getFlags(move) & CAPTURE) != 0; 
+        int flags = getFlags(move);
+        return flags == CAPTURE || flags == EN_PASSANT || flags == PROMOTION_CAPTURE; 
     }
 }
