@@ -14,11 +14,11 @@ public class MatchRunner {
         System.out.println("--------------------------------------------");
 
         for (int i=0; i<totalGames; i++) {
-            boolean firstEngineIsWhite = (i % 2 == 0);
+            boolean FirstEngineIsWhite = (i % 2 == 0);
             Board board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
-            FirstEngine newBot = new FirstEngine(board, firstEngineIsWhite);
-            KillersAndLMRBot oldBot = new KillersAndLMRBot(board, !firstEngineIsWhite);
+            FirstEngine newBot = new FirstEngine(board, FirstEngineIsWhite);
+            KillersAndLMRBot oldBot = new KillersAndLMRBot(board, !FirstEngineIsWhite);
 
             String result = playMatch(board, newBot, oldBot);
 

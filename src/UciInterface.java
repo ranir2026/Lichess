@@ -2,14 +2,14 @@ import java.util.Scanner;
 
 import core.Board;
 import core.Move;
-import engines.KillersAndLMRBot;
-// import engines.KillersAndLMRBot;
+import engines.FirstEngine;
+// import engines.FirstEngine;
 
 import java.util.ArrayList;
 
 public class UciInterface {
     private static Board board;
-    private static KillersAndLMRBot engine;
+    private static FirstEngine engine;
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
@@ -40,7 +40,7 @@ public class UciInterface {
             } 
             // else if (input.startsWith("go")) {
             //     // Initialize engine with current board and correct turn color
-            //     engine = new KillersAndLMRBot(board, board.getStateTracker().getTurn());
+            //     engine = new FirstEngine(board, board.getStateTracker().getTurn());
                 
             //     // Depth 3 search as seen in your previous main method
             //     int bestMoveInt = engine.getBestMove(8); 
@@ -69,7 +69,7 @@ public class UciInterface {
                 int myInc = board.getStateTracker().getTurn() ? winc : binc;
 
                 // Initialize engine
-                engine = new KillersAndLMRBot(board, board.getStateTracker().getTurn());
+                engine = new FirstEngine(board, board.getStateTracker().getTurn());
 
                 // Pass the time to your engine's search method
                 // You will need to update getBestMove to accept these parameters

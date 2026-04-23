@@ -1,7 +1,7 @@
 package core;
 import javax.swing.*;
 
-import engines.KillersAndLMRBot;
+import engines.FirstEngine;
 import pieces.Piece;
 
 import java.awt.event.MouseEvent;
@@ -19,7 +19,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
     private int displaySize = windowHeight / 8;
     
     private Board game;
-    private KillersAndLMRBot bot;
+    private FirstEngine bot;
     private boolean isBotThinking = false;
 
     // drag n drop functinos
@@ -30,7 +30,7 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
 
     private java.util.ArrayList<Integer> currentLegalMoves = new java.util.ArrayList<>();
 
-    public ShapeDrawing(Board game, KillersAndLMRBot bot) {
+    public ShapeDrawing(Board game, FirstEngine bot) {
         this.game = game;
         this.bot = bot;
         try {
@@ -198,14 +198,15 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
     @Override public void mouseExited(MouseEvent e) {}    
     @Override public void mouseClicked(MouseEvent e) {}
 
-    private void makeBotMove(KillersAndLMRBot bot) {
+    private void makeBotMove(FirstEngine bot) {
         // We use a separate thread so the bot can think without freezing the GUI
         isBotThinking = true;
         new Thread(() -> {
             try {
                 Thread.sleep(500); 
                 
-                int botMove = bot.getBestMove(3000, 0);
+
+                int botMove = bot.getBestMove(2, 0);
                 game.makeMove(botMove);
                 isBotThinking = false;
                 
@@ -223,7 +224,10 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
         Board game = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-        KillersAndLMRBot bot = new KillersAndLMRBot(game, false);
+        // r2qkb1r/ppp1pppp/2n5/3n4/Q2P2b1/8/PP2PPPP/RNB1KBNR
+        FirstEngine bot = new FirstEngine(game, false);
+        System.out.println(Long.toHexString(game.calculateManualHash()));
+        System.out.println(Long.toHexString(game.getCurrentHash()));
         
         frame.getContentPane().add(new ShapeDrawing(game, bot));
         frame.setVisible(true);

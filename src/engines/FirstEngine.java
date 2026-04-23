@@ -212,7 +212,7 @@ public class FirstEngine {
         // game over check
         if (moves.isEmpty()) {
             if (this.game.isInCheck(isWhiteTurn)) {
-                return -MATE_SCORE - depth;
+                return -MATE_SCORE + ply;
             } else {
                 return DRAW_SCORE;
             }
@@ -226,6 +226,7 @@ public class FirstEngine {
                 this.game.makeNullMove();
                 double nullScore = -Search(depth - 1 - R, -beta, -beta + 1, ply + 1, false);
                 this.game.unmakeNullMove();
+                
                 if (nullScore >= beta) {
                     double verifyScore = Search(depth - 1, alpha, beta, ply, false);
                     if (verifyScore >= beta) return beta;

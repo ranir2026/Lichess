@@ -76,10 +76,11 @@ public class Board
         Piece movingPiece = this.gameBoard[startSquare];
         if (movingPiece == null) return;
 
-        int oldEPSquare = stateTracker.getEnPassantSquare();
-        if (oldEPSquare != -1) currentHash ^= Zobrist.enPassantFile[oldEPSquare % 8];
         currentHash ^= Zobrist.castlingRights[stateTracker.getCastlingRights()];
         currentHash ^= Zobrist.table[Zobrist.getPieceIndex(movingPiece)][startSquare];
+
+        int oldEPSquare = stateTracker.getEnPassantSquare();
+        if (oldEPSquare != -1) currentHash ^= Zobrist.enPassantFile[oldEPSquare % 8];
 
         int newEPSquare = -1;
 
@@ -146,7 +147,6 @@ public class Board
 
         int newCastlingRights = updateCastlingRights(startSquare, endSquare, flags);
         currentHash ^= Zobrist.castlingRights[newCastlingRights];
-
         currentHash ^= Zobrist.sideToMove;
         this.stateTracker.pushState(newEPSquare, newCastlingRights);
         this.stateTracker.pushHash(currentHash);
@@ -164,8 +164,8 @@ public class Board
         this.stateTracker.switchTurn();
         currentHash ^= Zobrist.sideToMove;
 
-        int epBeforePop = stateTracker.getEnPassantSquare();
-        if (epBeforePop != -1) currentHash ^= Zobrist.enPassantFile[epBeforePop % 8];
+        int epAfterMove = stateTracker.getEnPassantSquare();
+        if (epAfterMove != -1) currentHash ^= Zobrist.enPassantFile[epAfterMove % 8];
         currentHash ^= Zobrist.castlingRights[stateTracker.getCastlingRights()];
 
         this.stateTracker.popState();
@@ -178,6 +178,11 @@ public class Board
 
         Piece movedPiece = this.gameBoard[end];
         Piece capturedPiece = this.stateTracker.popCapture();
+
+        int epBeforeMove = stateTracker.getEnPassantSquare();
+        if (epBeforeMove != -1) currentHash ^= Zobrist.enPassantFile[epBeforeMove % 8];
+
+        currentHash ^= Zobrist.castlingRights[stateTracker.getCastlingRights()];
 
         if (movedPiece != null) {
             currentHash ^= Zobrist.table[Zobrist.getPieceIndex(movedPiece)][end];
@@ -404,6 +409,14 @@ public class Board
         if (!this.stateTracker.getTurn()) {
             this.currentHash ^= Zobrist.sideToMove;
         }
+
+        int initialRights = this.stateTracker.getCastlingRights();
+        this.currentHash ^= Zobrist.castlingRights[initialRights];
+
+        int epSquare = this.stateTracker.getEnPassantSquare();
+        if (epSquare != -1) {
+            // this.currentHash ^= Zobrist.enPassantFile[epSquare % 8];
+        }
         
         this.stateTracker.pushHash(this.currentHash);
     }
@@ -434,6 +447,41 @@ public class Board
     
     public long getCurrentHash() {
         return this.currentHash;
+    }
+
+    public long calculateManualHash() {
+        long hash = 0L;
+
+        // 1. Pieces on squares
+        for (int i = 0; i < 64; i++) {
+            Piece p = this.gameBoard[i];
+            if (p != null) {
+                // Get the unique index for the piece type and color
+                int pieceIdx = Zobrist.getPieceIndex(p);
+                // XOR the random value for this piece at this square
+                hash ^= Zobrist.table[pieceIdx][i];
+            }
+        }
+
+        // 2. Side to move
+        // Only XOR if it is Black's turn, as is standard in most engines
+        if (!this.stateTracker.getTurn()) {
+            hash ^= Zobrist.sideToMove;
+        }
+
+        // 3. Castling Rights
+        // Use the combined bitmask of castling rights as an index
+        int castlingRights = this.stateTracker.getCastlingRights();
+        hash ^= Zobrist.castlingRights[castlingRights];
+
+        // 4. En Passant Square
+        int epSquare = this.stateTracker.getEnPassantSquare();
+        if (epSquare != -1) {
+            // Typically, we only hash the file (column) to reduce collisions
+            hash ^= Zobrist.enPassantFile[epSquare % 8];
+        }
+
+        return hash;
     }
 
 }
