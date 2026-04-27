@@ -149,6 +149,11 @@ public class GameState {
         }
     }
 
+    public long peekHash() {
+        if (hashHistory.isEmpty()) return 0L;
+        return hashHistory.get(hashHistory.size() - 1);
+    }
+
     public ArrayList<Long> getHashHistory() {
         return hashHistory;
     } 

@@ -7,18 +7,21 @@ import pieces.*;
 public class FirstEngine {
     public long nodesSearched = 0;
 
-    // Piece values
+    // hard coded piece values
     private static final double PAWN = 100.0;
     private static final double KNIGHT = 320.0;
     private static final double BISHOP = 330.0;
     private static final double ROOK = 500.0;
     private static final double QUEEN = 900.0;
+
+    // evaluation scores for checkmates and draws
     private static final double MATE_SCORE = 100000.0;
     private static final double DRAW_SCORE = 0.0;
 
     private Board game;
     private boolean color;
 
+    // tables to handle late-move reductions and killer moves
     private static final int[][] LMR_TABLE = new int[64][64];
     private int[][] killerMoves = new int[64][2];
 
@@ -30,6 +33,7 @@ public class FirstEngine {
         }
     }
 
+    // piece square tables -- will need to eventually tune to PeSTO values
     private static final double[] PAWN_PST = {
         0,  0,  0,  0,  0,  0,  0,  0,
         50, 50, 50, 50, 50, 50, 50, 50,
@@ -107,18 +111,20 @@ public class FirstEngine {
         -50,-30,-30,-30,-30,-30,-30,-50
     };
 
+    // transpositoin table
     public static final int TABLE_SIZE = 1048576; // 2^20 ~ 32MB-64MB
     private TranspositionTableEntry[] transpositionTable = new TranspositionTableEntry[TABLE_SIZE];
 
     private int getIndex(long hash) {
         return (int) (Math.abs(hash) % TABLE_SIZE);
     }
-
-    public FirstEngine(Board game, boolean color) {
-        this.game = game;
-        this.color = color;
+    
+    private int flip(int i) {
+        return (7 - (i / 8)) * 8 + (i % 8);
     }
 
+    public boolean getColor() { return this.color; }
+    
     public static double countMaterial(Piece p) {
         if (p instanceof Pawn)   return PAWN;
         if (p instanceof Knight) return KNIGHT;
@@ -129,10 +135,15 @@ public class FirstEngine {
         return 0;
     }
 
+    public FirstEngine(Board game, boolean color) {
+        this.game = game;
+        this.color = color;
+    }
+    
     public double Evaluate() {
         double whiteScore = 0.0;
         double blackScore = 0.0;
-        int phase = 0;
+        int phase = 0; // to keep track of opening/middlegame/endgame
 
         // Calculate material and phase
         for (int i = 0; i < 64; i++) {
@@ -171,15 +182,97 @@ public class FirstEngine {
             else blackScore += (material + positional);
         }
 
-        // NEGAMA-COMPATIBLE PERSPECTIVE
         // If it's white's turn, return (white - black)
         // If it's black's turn, return (black - white)
         int perspective = this.game.getStateTracker().getTurn() ? 1 : -1;
         return (whiteScore - blackScore) * perspective;
     }
 
-    private int flip(int i) {
-        return (7 - (i / 8)) * 8 + (i % 8);
+    
+    public int[] OrderMoves(ArrayList<Integer> moves, int ttMove, int ply) {
+        long[] moveScores = new long[moves.size()];
+        
+        for (int i = 0; i < moves.size(); i++) {
+            int move = moves.get(i);
+            int flags = Move.getFlags(move);
+            int score = 0;
+            
+            int startSq = Move.getStart(move);
+            int endSq = Move.getEnd(move);
+            
+            Piece movingPiece = this.game.getGameBoard()[startSq];
+            Piece targetPiece = this.game.getGameBoard()[endSq];
+            
+            if (move == ttMove) {
+                score = 1000000; // if it's the TT move it has absolute priority
+            }
+            else if (targetPiece != null) {
+                // Formula: (10 * VictimValue) - AttackerValue
+                // This ensures Pawn takes Queen is ranked higher than Rook takes Queen
+                score = (int)(10 * countMaterial(targetPiece) - countMaterial(movingPiece));
+                score += 100000; // Offset to ensure captures are always above quiet moves
+            }
+            else if (flags == Move.EN_PASSANT) {
+                score = (int)(10 * PAWN - PAWN);
+                score += 100000;
+            }
+            else if (ply < 64) { // killer moves get 3rd and 4th highest priority
+                if (move == killerMoves[ply][0]) {
+                    score = 90000;
+                } else if (move == killerMoves[ply][1]) {
+                    score = 80000;
+                }
+            }
+
+            if ((Move.getFlags(move) & Move.PROMOTION_QUIET) != 0) {
+                score += 8000;
+            } else if ((Move.getFlags(move) & Move.PROMOTION_CAPTURE) != 0) {
+                score += 8000;
+            }
+
+            moveScores[i] = ((long)score << 32) | (move & 0xFFFFFFFFL);
+        }
+        
+        Arrays.sort(moveScores);
+        
+        int[] orderedMoves = new int[moves.size()];
+        for (int i = 0; i < moveScores.length; i++) {
+            orderedMoves[i] = (int)(moveScores[moveScores.length - 1 - i] & 0xFFFFFFFFL);
+        }
+        
+        return orderedMoves;
+    }
+    
+    public double SearchCaptures(double alpha, double beta, int ply) {
+        if (ply >= 63) {
+            return Evaluate();
+        }
+
+        if (this.game.getStateTracker().isThreefoldRepetition(this.game.getCurrentHash())) {
+            return DRAW_SCORE;
+        }
+
+        double evaluation = Evaluate();
+        if (evaluation >= beta) {
+            return beta;
+        }
+        alpha = Math.max(alpha, evaluation);
+        
+        ArrayList<Integer> moves = this.game.getCaptureMoves(this.game.getStateTracker().getTurn());
+        int[] sortedMoves = OrderMoves(moves, -1, ply);
+        
+        for (int move : sortedMoves) {
+            this.game.makeMove(move);
+            double score = -SearchCaptures(-beta, -alpha, ply + 1);
+            this.game.unmakeMove(move);
+            
+            if (score >= beta) {
+                return beta;
+            }
+            alpha = Math.max(alpha, score);
+        }
+        
+        return alpha;
     }
 
     public double Search(int depth, double alpha, double beta, int ply, boolean allowNMP) {
@@ -226,7 +319,7 @@ public class FirstEngine {
                 this.game.makeNullMove();
                 double nullScore = -Search(depth - 1 - R, -beta, -beta + 1, ply + 1, false);
                 this.game.unmakeNullMove();
-                
+
                 if (nullScore >= beta) {
                     double verifyScore = Search(depth - 1, alpha, beta, ply, false);
                     if (verifyScore >= beta) return beta;
@@ -242,6 +335,7 @@ public class FirstEngine {
         // Move Loop
         for (int move : orderedMoves) {
             this.game.makeMove(move);
+
             movesSearched++;
 
             double score;
@@ -285,92 +379,6 @@ public class FirstEngine {
         return alpha;
     }
 
-    public int[] OrderMoves(ArrayList<Integer> moves, int ttMove, int ply) {
-        long[] moveScores = new long[moves.size()];
-
-        for (int i = 0; i < moves.size(); i++) {
-            int move = moves.get(i);
-            int flags = Move.getFlags(move);
-            int score = 0;
-
-            int startSq = Move.getStart(move);
-            int endSq = Move.getEnd(move);
-            
-            Piece movingPiece = this.game.getGameBoard()[startSq];
-            Piece targetPiece = this.game.getGameBoard()[endSq];
-
-            if (move == ttMove) {
-                score = 1000000; // if it's the TT move it has absolute priority
-            }
-            else if (targetPiece != null) {
-                // Formula: (10 * VictimValue) - AttackerValue
-                // This ensures Pawn takes Queen is ranked higher than Rook takes Queen
-                score = (int)(10 * countMaterial(targetPiece) - countMaterial(movingPiece));
-                score += 100000; // Offset to ensure captures are always above quiet moves
-            }
-            else if (flags == Move.EN_PASSANT) {
-                score = (int)(10 * PAWN - PAWN);
-                score += 100000;
-            }
-            else if (ply < 64) { // killer moves get 3rd and 4th highest priority
-                if (move == killerMoves[ply][0]) {
-                    score = 90000;
-                } else if (move == killerMoves[ply][1]) {
-                    score = 80000;
-                }
-            }
-
-            if ((Move.getFlags(move) & Move.PROMOTION_QUIET) != 0) {
-                score += 8000;
-            } else if ((Move.getFlags(move) & Move.PROMOTION_CAPTURE) != 0) {
-                score += 8000;
-            }
-
-            moveScores[i] = ((long)score << 32) | (move & 0xFFFFFFFFL);
-        }
-
-        Arrays.sort(moveScores);
-
-        int[] orderedMoves = new int[moves.size()];
-        for (int i = 0; i < moveScores.length; i++) {
-            orderedMoves[i] = (int)(moveScores[moveScores.length - 1 - i] & 0xFFFFFFFFL);
-        }
-
-        return orderedMoves;
-    }
-
-    public double SearchCaptures(double alpha, double beta, int ply) {
-        if (ply >= 63) {
-            return Evaluate();
-        }
-
-        if (this.game.getStateTracker().isThreefoldRepetition(this.game.getCurrentHash())) {
-            return DRAW_SCORE;
-        }
-
-        double evaluation = Evaluate();
-        if (evaluation >= beta) {
-            return beta;
-        }
-        alpha = Math.max(alpha, evaluation);
-
-        ArrayList<Integer> moves = this.game.getCaptureMoves(this.game.getStateTracker().getTurn());
-        int[] sortedMoves = OrderMoves(moves, -1, ply);
-
-        for (int move : sortedMoves) {
-            this.game.makeMove(move);
-            double score = -SearchCaptures(-beta, -alpha, ply + 1);
-            this.game.unmakeMove(move);
-
-            if (score >= beta) {
-                return beta;
-            }
-            alpha = Math.max(alpha, score);
-        }
-
-        return alpha;
-    }
-
     public int getBestMove(int TotalTimeLeft, int increment) {
         int maxDepth = 20;
         long startTime = System.currentTimeMillis();
@@ -391,7 +399,7 @@ public class FirstEngine {
             double bestScoreThisIteration = Double.NEGATIVE_INFINITY;
 
             TranspositionTableEntry entry = transpositionTable[getIndex(this.game.getCurrentHash())];
-            int ttMove = (entry != null) ? entry.bestMove : -1;
+            int ttMove = (entry != null && entry.key == this.game.getCurrentHash()) ? entry.bestMove : -1;
             int[] orderedMoves = OrderMoves(moves, ttMove, 0);
 
             for (int move : orderedMoves) {
@@ -424,5 +432,4 @@ public class FirstEngine {
         return overallBestMove;
     }
 
-    public boolean getColor() { return this.color; }
 }

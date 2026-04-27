@@ -54,7 +54,7 @@ public class Pawn extends Piece {
             if (targetPiece != null && targetPiece.getColor() != this.getColor())
             {
                 if (targetSquare >= 0 && targetSquare <= 7 && this.getColor() == true) {
-                moves.add(Move.encode(startSquare, targetSquare, Move.PROMOTION_CAPTURE));
+                    moves.add(Move.encode(startSquare, targetSquare, Move.PROMOTION_CAPTURE));
                 } else if (targetSquare >= 56 && targetSquare <= 63 && this.getColor() == false) {
                     moves.add(Move.encode(startSquare, targetSquare, Move.PROMOTION_CAPTURE));
                 } else { // check if it's enemy piece
@@ -65,25 +65,40 @@ public class Pawn extends Piece {
         }
 
         // en passant
-        if (boardGameState.getMoveRecord().size() > 0) {
-            int lastMove = boardGameState.getMoveRecord().get(boardGameState.getMoveRecord().size() - 1);
-            if (Move.getFlags(lastMove) == Move.DOUBLE_PAWN) {
-                int lastEnd = Move.getEnd(lastMove);
-                int lastFile = lastEnd % 8;
-                int lastRank = lastEnd / 8;
+        // if (boardGameState.getMoveRecord().size() > 0) {
+        //     int lastMove = boardGameState.getMoveRecord().get(boardGameState.getMoveRecord().size() - 1);
+        //     if (Move.getFlags(lastMove) == Move.DOUBLE_PAWN) {
+        //         int lastEnd = Move.getEnd(lastMove);
+        //         int lastFile = lastEnd % 8;
+        //         int lastRank = lastEnd / 8;
     
-                // same row?
-                if (lastRank == row) {
-                    // same col?
-                    if (Math.abs(lastFile - col) == 1) {                    
-                        if (this.getColor()) { // White
-                            targetSquare = lastEnd - 8; 
-                        } else { // Black
-                            targetSquare = lastEnd + 8;
-                        }
+        //         // same row?
+        //         if (lastRank == row) {
+        //             // same col?
+        //             if (Math.abs(lastFile - col) == 1) {                    
+        //                 if (this.getColor()) { // White
+        //                     targetSquare = lastEnd - 8; 
+        //                 } else { // Black
+        //                     targetSquare = lastEnd + 8;
+        //                 }
     
-                        moves.add(Move.encode(startSquare, targetSquare, Move.EN_PASSANT));
-                    }
+        //                 moves.add(Move.encode(startSquare, targetSquare, Move.EN_PASSANT));
+        //             }
+        //         }
+        //     }
+        // }
+
+        int epSquare = boardGameState.getEnPassantSquare();
+        if (epSquare != -1) {
+            int epCol = epSquare % 8;
+            int epRow = epSquare / 8;
+
+            if (Math.abs(epCol - col) == 1) {
+                if (this.getColor() && row == 3 && epRow == 2) {
+                    moves.add(Move.encode(startSquare, epSquare, Move.EN_PASSANT));
+                } 
+                else if (!this.getColor() && row == 4 && epRow == 5) {
+                    moves.add(Move.encode(startSquare, epSquare, Move.EN_PASSANT));
                 }
             }
         }

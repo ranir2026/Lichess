@@ -203,10 +203,10 @@ class ShapeDrawing extends JComponent implements MouseListener, MouseMotionListe
         isBotThinking = true;
         new Thread(() -> {
             try {
-                Thread.sleep(500); 
+                Thread.sleep(100); 
                 
 
-                int botMove = bot.getBestMove(2, 0);
+                int botMove = bot.getBestMove(3 * 60 * 1000, 0);
                 game.makeMove(botMove);
                 isBotThinking = false;
                 
