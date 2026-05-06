@@ -38,7 +38,7 @@ public class Board
         return rights;
     }
 
-    private boolean canMoveInDir(int sq, int dir) {
+    public static boolean canMoveInDir(int sq, int dir) {
         int row = sq / 8;
         int col = sq % 8;
 
@@ -69,18 +69,6 @@ public class Board
     }
 
     public void makeMove(int move) {
-        // long incrementalHash = this.getCurrentHash();
-        // long actualHash = this.calculateManualHash();
-        
-        // if (incrementalHash != actualHash) {
-        //     System.out.println("Move: " + moveToLan(move) + " (Flags: " + Integer.toBinaryString(Move.getFlags(move) >> 12) + ")");
-        //     System.out.println("Last move: " + moveToLan(this.stateTracker.getMoveRecord().get(this.stateTracker.getMoveRecord().size() - 1))  );
-        //     System.out.println("Board State: " + this.toString());
-        //     System.out.println("EP Square: " + this.stateTracker.getEnPassantSquare());
-        //     System.out.println("Turn: " + this.stateTracker.getTurn());
-        //     throw new RuntimeException("Hash Mismatch"); 
-        // }
-
         int startSquare = Move.getStart(move);
         int endSquare = Move.getEnd(move);
         int flags = Move.getFlags(move);

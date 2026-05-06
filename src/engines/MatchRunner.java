@@ -18,7 +18,7 @@ public class MatchRunner {
             Board board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
             FirstEngine newBot = new FirstEngine(board, FirstEngineIsWhite);
-            KillersAndLMRBot oldBot = new KillersAndLMRBot(board, !FirstEngineIsWhite);
+            NMPBot oldBot = new NMPBot(board, !FirstEngineIsWhite);
 
             String result = playMatch(board, newBot, oldBot);
 
@@ -42,8 +42,8 @@ public class MatchRunner {
         
     }
 
-    private static String playMatch(Board board, FirstEngine newBot, KillersAndLMRBot oldBot) {
-        int moveLimit = 300; // Hard cap to prevent infinite shuffling
+    private static String playMatch(Board board, FirstEngine newBot, NMPBot oldBot) {
+        int moveLimit = 260; // Hard cap to prevent infinite shuffling
         int movesMade = 0;
 
         while (movesMade < moveLimit) {
@@ -52,9 +52,9 @@ public class MatchRunner {
 
             // Determine whose turn it is and get their best move
             if (isWhiteTurn == newBot.getColor()) {
-                move = newBot.getBestMove(3200, 0);
+                move = newBot.getBestMove(3500, 0);
             } else {
-                move = oldBot.getBestMove(3200, 0);
+                move = oldBot.getBestMove(3500, 0);
             }
 
             // Game Over Detection: No legal moves left

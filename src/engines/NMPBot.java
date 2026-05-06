@@ -1,10 +1,22 @@
+/* 
+Forked on 4-28-2026 @ 7:08 AM
+- Implemented Null Move Pruning
+- Fixed En Passant Move Generation
+- Fixed a slight issue with mate scores
+
+Against KillersAndLMRBot:
+Wins: 345
+Losses: 189
+Draws: 119
+*/
+
 package engines;
 import java.util.ArrayList;
 import java.util.Arrays;
 import core.*;
 import pieces.*;
 
-public class FirstEngine {
+public class NMPBot {
     public long nodesSearched = 0;
 
     // hard coded piece values
@@ -21,14 +33,9 @@ public class FirstEngine {
     private Board game;
     private boolean color;
 
-    // tables to handle late-move reductions, killer moves, and history heuristics
+    // tables to handle late-move reductions and killer moves
     private static final int[][] LMR_TABLE = new int[64][64];
     private int[][] killerMoves = new int[64][2];
-
-    // history heuristics stuff
-    private static final int MAX_HISTORY = 16384; // 2^14 ~~ arbitrary limit
-    private int[][][] historyTable = new int[2][64][64];
-    private int[][] counterMoves = new int[64][64];
 
     static {
         for (int depth = 1; depth < 64; depth++) {
@@ -130,12 +137,6 @@ public class FirstEngine {
 
     public boolean getColor() { return this.color; }
     
-    private void updateHistory(int color, int from, int to, int bonus) {
-        int current = historyTable[color][from][to];
-        historyTable[color][from][to] = current + bonus 
-            - (current * Math.abs(bonus) / MAX_HISTORY);
-    }
-
     public static double countMaterial(Piece p) {
         if (p instanceof Pawn)   return PAWN;
         if (p instanceof Knight) return KNIGHT;
@@ -146,7 +147,7 @@ public class FirstEngine {
         return 0;
     }
 
-    public FirstEngine(Board game, boolean color) {
+    public NMPBot(Board game, boolean color) {
         this.game = game;
         this.color = color;
     }
@@ -231,31 +232,11 @@ public class FirstEngine {
                 score = (int)(10 * PAWN - PAWN);
                 score += 100000;
             }
-            else {
-                if (ply < 64) { // killer moves get 3rd and 4th highest priority
-                    if (move == killerMoves[ply][0]) {
-                        score = 90000;
-                    } else if (move == killerMoves[ply][1]) {
-                        score = 80000;
-                    }
-                }
-                
-                // counter moves
-                if (this.game.getStateTracker().getMoveRecord().size() > 0) {
-                    int prevMove = this.game.getStateTracker().getMoveRecord().get(this.game.getStateTracker().getMoveRecord().size() - 1);
-                    int prevTo = Move.getEnd(prevMove);
-                    int prevFrom = Move.getStart(prevMove);
-
-                    if (move == counterMoves[prevFrom][prevTo]) {
-                        score = 85000;
-                    }
-                }
-                
-                // history heuristic
-                if (!Move.isCapture(move)) {
-                    // assign the history score to quiet moves
-                    int colorIdx = this.game.getStateTracker().getTurn() ? 1 : 0;
-                    score += historyTable[colorIdx][startSq][endSq] * 200000 / MAX_HISTORY;
+            else if (ply < 64) { // killer moves get 3rd and 4th highest priority
+                if (move == killerMoves[ply][0]) {
+                    score = 90000;
+                } else if (move == killerMoves[ply][1]) {
+                    score = 80000;
                 }
             }
 
@@ -368,11 +349,10 @@ public class FirstEngine {
         int[] orderedMoves = OrderMoves(moves, ttMove, ply);
         int movesSearched = 0;
 
-        ArrayList<Integer> quietMovesSearched = new ArrayList<>();
-
         // Move Loop
         for (int move : orderedMoves) {
             this.game.makeMove(move);
+
             movesSearched++;
 
             double score;
@@ -395,44 +375,12 @@ public class FirstEngine {
             this.game.unmakeMove(move);
 
             if (score >= beta) {
-                // update the transposition table with the beta cutoff
                 transpositionTable[ttIndex] = new TranspositionTableEntry(hash, beta, depth, TranspositionTableEntry.LOWER_BOUND, move);
-
-                // history heuristic update -- ignore captures
-                if (!Move.isCapture(move)) {
-                    int clampedBonus = Math.min(depth * depth, MAX_HISTORY);
-                    int colorIdx = isWhiteTurn ? 1 : 0;
-
-                    // reward the move that caused cutoff
-                    updateHistory(colorIdx, Move.getStart(move), Move.getEnd(move), clampedBonus);
-
-                    // penalize all previous quiet moves
-                    for (int prevMove : quietMovesSearched) {
-                        if (prevMove == move) continue;
-                        updateHistory(colorIdx, Move.getStart(prevMove), Move.getEnd(prevMove), -clampedBonus);
-                    }
-                }
-
-                // save the move as a killer move
                 if (ply < 64 && !Move.isCapture(move) && move != killerMoves[ply][0]) {
                     killerMoves[ply][1] = killerMoves[ply][0];
                     killerMoves[ply][0] = move;
                 }
-
-                // countermoves
-                ArrayList<Integer> moveRecord = this.game.getStateTracker().getMoveRecord(); 
-                int prevMove = moveRecord.get(moveRecord.size() - 1);
-                if (prevMove != -1) {
-                    int prevTo = Move.getEnd(prevMove);
-                    int prevFrom = Move.getStart(prevMove);
-                    counterMoves[prevFrom][prevTo] = move;
-                }
-                  
                 return beta;
-            }
-
-            if (!isCapture) {
-                quietMovesSearched.add(move);
             }
 
             if (score > alpha) {
@@ -456,10 +404,8 @@ public class FirstEngine {
         if (!this.color && this.game.getStateTracker().getPly() == 1) {
             int lastMove = this.game.getStateTracker().getMoveRecord().get(0);
             if (Move.getStart(lastMove) == 52 && Move.getEnd(lastMove) == 36) {
-                return Move.encode(12, 28, Move.DOUBLE_PAWN);
+                return Move.encode(12, 28, Move.QUIET_MOVE);
             }
-        } else if (this.color && this.game.getStateTracker().getPly() == 0) {
-            return Move.encode(52, 36, Move.DOUBLE_PAWN);
         }
 
         int maxDepth = 25;

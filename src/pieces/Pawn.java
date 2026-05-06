@@ -88,6 +88,7 @@ public class Pawn extends Piece {
         //     }
         // }
 
+        // en passant
         int epSquare = boardGameState.getEnPassantSquare();
         if (epSquare != -1) {
             int epCol = epSquare % 8;
