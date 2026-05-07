@@ -312,6 +312,10 @@ public class FirstEngine {
     }
 
     public double Search(int depth, double alpha, double beta, int ply, boolean allowNMP) {
+        if (Thread.currentThread().isInterrupted()) {
+            return 0;
+        }
+
         nodesSearched++;
         long hash = this.game.getCurrentHash();
 
