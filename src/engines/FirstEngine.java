@@ -255,7 +255,7 @@ public class FirstEngine {
                 if (!Move.isCapture(move)) {
                     // assign the history score to quiet moves
                     int colorIdx = this.game.getStateTracker().getTurn() ? 1 : 0;
-                    score += historyTable[colorIdx][startSq][endSq] * 200000 / MAX_HISTORY;
+                    score += (int)((long)historyTable[colorIdx][startSq][endSq] * 200000L / MAX_HISTORY);
                 }
             }
 
@@ -447,7 +447,9 @@ public class FirstEngine {
 
         // store in transposition table
         int type = (alpha <= originalAlpha) ? TranspositionTableEntry.UPPER_BOUND : TranspositionTableEntry.EXACT;
-        transpositionTable[ttIndex] = new TranspositionTableEntry(hash, alpha, depth, type, bestMoveFound);
+        if (entry == null || depth >= entry.depth) { // don't overwrite the transposition table with a calculation at shallower depth
+            transpositionTable[ttIndex] = new TranspositionTableEntry(hash, alpha, depth, type, bestMoveFound);
+        }
 
         return alpha;
     }
@@ -474,40 +476,68 @@ public class FirstEngine {
         
         int overallBestMove = -1;
 
+        double previousScore = 0.0;
+        double WINDOW = 50.0;
+
         for (int currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
             ArrayList<Integer> moves = this.game.getLegalMoves(this.game.getStateTracker().getTurn());
             if (moves.isEmpty()) break;
 
             double alpha = Double.NEGATIVE_INFINITY;
             double beta = Double.POSITIVE_INFINITY;
+
+            if (currentDepth > 1) {
+                alpha = previousScore - WINDOW;
+                beta = previousScore + WINDOW;
+            }
+
+            while (true) {
+                double originalAlpha = alpha;
+                double originalBeta = beta;
+                
+                int bestMoveThisIteration = -1;
+                double bestScoreThisIteration = Double.NEGATIVE_INFINITY;
+                
+                TranspositionTableEntry entry = transpositionTable[getIndex(this.game.getCurrentHash())];
+                int ttMove = (entry != null && entry.key == this.game.getCurrentHash()) ? entry.bestMove : -1;
+                int[] orderedMoves = OrderMoves(moves, ttMove, 0);
+                
+                for (int move : orderedMoves) {
+                    this.game.makeMove(move);
+                    // Search the next level
+                    double score = -Search(currentDepth - 1, -beta, -alpha, 1, true);
+                    this.game.unmakeMove(move);
+    
+                    if (score > bestScoreThisIteration) {
+                        bestScoreThisIteration = score;
+                        bestMoveThisIteration = move;
+                    }
+    
+                    if (score > alpha) {
+                        alpha = score;
+                    }
+
+                    if (alpha >= beta) {
+                        break;
+                    }
+                }
+
+                if (bestScoreThisIteration <= originalAlpha) {
+                    alpha = Double.NEGATIVE_INFINITY;
+                    continue;
+                } else if (bestScoreThisIteration >= originalBeta) {
+                    beta = Double.POSITIVE_INFINITY;
+                    continue;
+                }
+
+                previousScore = bestScoreThisIteration;
+                if (bestMoveThisIteration != -1) {
+                    overallBestMove = bestMoveThisIteration;
+                }
+
+                break;
+            }
             
-            int bestMoveThisIteration = -1;
-            double bestScoreThisIteration = Double.NEGATIVE_INFINITY;
-
-            TranspositionTableEntry entry = transpositionTable[getIndex(this.game.getCurrentHash())];
-            int ttMove = (entry != null && entry.key == this.game.getCurrentHash()) ? entry.bestMove : -1;
-            int[] orderedMoves = OrderMoves(moves, ttMove, 0);
-
-            for (int move : orderedMoves) {
-                this.game.makeMove(move);
-                // Search the next level
-                double score = -Search(currentDepth - 1, -beta, -alpha, 1, true);
-                this.game.unmakeMove(move);
-
-                if (score > bestScoreThisIteration) {
-                    bestScoreThisIteration = score;
-                    bestMoveThisIteration = move;
-                }
-
-                if (score > alpha) {
-                    alpha = score;
-                }
-            }
-
-            if (bestMoveThisIteration != -1) {
-                overallBestMove = bestMoveThisIteration;
-            }
-
             long timeElapsed = System.currentTimeMillis() - startTime;
             if (timeElapsed > timeLimit / 2) {
                 // If we've used half our time, we likely won't finish the next depth

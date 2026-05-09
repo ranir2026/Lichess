@@ -26,9 +26,26 @@ NMPBot (4/28/2026)
     - Fixed a slight issue with mate scores
 
     Match Suite (vs KillersAndLMRBot):
-    - Wins: 345 | Losses: 189 | Draws: 119
+    - Wins: 534 | Losses: 278 | Draws: 188
+
     - One-sample z-test for a proportion
         H0: p=0.5 // Ha: p>0.5 // α = 0.001
-        z = 6.10 // p-value = 0
+        z = 8.01 // p-value = 5.9e-16
     - LoS ~= 1.0
-    - ELO Change: 84.6 ± 24.7
+    - ELO Change: 88.9 ± 25.6 
+
+FirstEngine (5/8/2026)
+    New Additions:
+    - Implemented History Heuristics
+    - Implemented Counter Moves
+    - Improved move ordering in searches
+    - Implemented Aspiration Windows
+
+    Match Suite (vs KillersAndLMRBot):
+    - Wins: 564 | Losses: 238 | Draws: 198
+
+    - One-sample z-test for a proportion
+        H0: p=0.5 // Ha: p>0.5 // α = 0.001
+        z = 10.31 // p-value = 3.2e-25
+    - LoS ~= 1.0
+    - ELO Change: 117.7 ± 24.9

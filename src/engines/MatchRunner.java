@@ -8,7 +8,7 @@ public class MatchRunner {
 
     public static void main(String[] args) {
 
-        int totalGames = 300;
+        int totalGames = 1000;
 
         int newEngineWins = 0;
         int oldEngineWins = 0;
@@ -27,16 +27,16 @@ public class MatchRunner {
 
         for (int i = 0; i < totalGames; i++) {
 
-            boolean KillersAndLMRBotIsWhite = (i % 2 == 0);
+            boolean FirstEngineIsWhite = (i % 2 == 0);
 
             Board board =
                 new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
-            KillersAndLMRBot newBot =
-                new KillersAndLMRBot(board, KillersAndLMRBotIsWhite);
+            FirstEngine newBot =
+                new FirstEngine(board, FirstEngineIsWhite);
 
-            IterativeDeepeningBot oldBot =
-                new IterativeDeepeningBot(board, !KillersAndLMRBotIsWhite);
+            NMPBot oldBot =
+                new NMPBot(board, !FirstEngineIsWhite);
 
             String result;
 
@@ -130,8 +130,8 @@ public class MatchRunner {
 
     private static String playMatch(
         Board board,
-        KillersAndLMRBot newBot,
-        IterativeDeepeningBot oldBot
+        FirstEngine newBot,
+        NMPBot oldBot
     ) {
 
         int moveLimit = 260;
