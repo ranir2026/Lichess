@@ -33,12 +33,8 @@ A classical chess engine written with Java. --RR
 ### Statistics
 
 - One-sample z-test for a proportion
-  - H0: p = 0.5
-  - Ha: p > 0.5
-  - α = 0.001
-  - z = 14.38
-  - p-value ≈ 0
-
+  - H0: p = 0.5 // Ha: p > 0.5 // α = 0.001
+  - z = 14.38 // p-value ≈ 0
 - LoS ≈ 1.0
 - Elo Change: **+322.7 ± 63.1**
 
@@ -62,12 +58,8 @@ A classical chess engine written with Java. --RR
 ### Statistics
 
 - One-sample z-test for a proportion
-  - H0: p = 0.5
-  - Ha: p > 0.5
-  - α = 0.01
-  - z = 8.01
-  - p-value = 5.9e-16
-
+  - H0: p = 0.5 // Ha: p > 0.5 // α = 0.01
+  - z = 8.01 // p-value = 5.9e-16
 - LoS ≈ 1.0
 - Elo Change: **+88.9 ± 25.6**
 
@@ -92,12 +84,8 @@ A classical chess engine written with Java. --RR
 ### Statistics
 
 - One-sample z-test for a proportion
-  - H0: p = 0.5
-  - Ha: p > 0.5
-  - α = 0.01
-  - z = 10.31
-  - p-value = 3.2e-25
-
+  - H0: p = 0.5 // Ha: p > 0.5 //α = 0.01
+  - z = 10.31 // p-value = 3.2e-25
 - LoS ≈ 1.0
 - Elo Change: **+117.7 ± 24.9**
 
@@ -114,11 +102,7 @@ A classical chess engine written with Java. --RR
 ### Statistics
 
 - One-sample z-test for a proportion
-  - H0: p = 0.5
-  - Ha: p > 0.5
-  - α = 0.01
-  - z = 2.85
-  - p-value = 0.0022
-
+  - H0: p = 0.5 // Ha: p > 0.5 // α = 0.01
+  - z = 2.85 // p-value = 0.0022
 - LoS ≈ 0.998
 - Elo Change: **+31.3 ± 24.8**
