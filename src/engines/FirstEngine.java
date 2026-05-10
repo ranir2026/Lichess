@@ -205,6 +205,14 @@ public class FirstEngine {
 
     
     public int[] OrderMoves(ArrayList<Integer> moves, int ttMove, int ply) {
+        // alpha-beta pruning and iterative deeepning is effective only
+        // as much as move ordering is successful. If moves are ordered
+        // in an optimal way, lots of branches can be pruned. These 
+        // weightings have been tuned through the scientific approach
+        // of pulling numbers straight out of my butt. The most optimal 
+        // hierachy, however, is known to be: 1. transposition tables
+        // 2. promotions 3. killers 4. countermoves 5. history
+
         long[] moveScores = new long[moves.size()];
         
         for (int i = 0; i < moves.size(); i++) {
@@ -234,9 +242,9 @@ public class FirstEngine {
             else {
                 if (ply < 64) { // killer moves get 3rd and 4th highest priority
                     if (move == killerMoves[ply][0]) {
-                        score = 90000;
+                        score += 90000;
                     } else if (move == killerMoves[ply][1]) {
-                        score = 80000;
+                        score += 80000;
                     }
                 }
                 
@@ -247,7 +255,7 @@ public class FirstEngine {
                     int prevFrom = Move.getStart(prevMove);
 
                     if (move == counterMoves[prevFrom][prevTo]) {
-                        score = 85000;
+                        score += 70000;
                     }
                 }
                 
@@ -255,14 +263,14 @@ public class FirstEngine {
                 if (!Move.isCapture(move)) {
                     // assign the history score to quiet moves
                     int colorIdx = this.game.getStateTracker().getTurn() ? 1 : 0;
-                    score += (int)((long)historyTable[colorIdx][startSq][endSq] * 200000L / MAX_HISTORY);
+                    score += historyTable[colorIdx][startSq][endSq] * 40000 / MAX_HISTORY;
                 }
             }
 
             if ((Move.getFlags(move) & Move.PROMOTION_QUIET) != 0) {
-                score += 8000;
+                score += 300000;
             } else if ((Move.getFlags(move) & Move.PROMOTION_CAPTURE) != 0) {
-                score += 8000;
+                score += 300000;
             }
 
             moveScores[i] = ((long)score << 32) | (move & 0xFFFFFFFFL);
@@ -360,7 +368,7 @@ public class FirstEngine {
                 double nullScore = -Search(depth - 1 - R, -beta, -beta + 1, ply + 1, false);
                 this.game.unmakeNullMove();
 
-                if (nullScore >= beta) {
+                if (depth >= 6 && nullScore >= beta) {
                     double verifyScore = Search(depth - 1, alpha, beta, ply, false);
                     if (verifyScore >= beta) return beta;
                 }
@@ -383,7 +391,7 @@ public class FirstEngine {
 
             boolean isCapture = Move.isCapture(move);
             boolean isPromotion = (Move.getFlags(move) & Move.PROMOTION_QUIET) != 0;
-            boolean inCheck = this.game.isInCheck(isWhiteTurn);
+            boolean inCheck = this.game.isInCheck(this.game.getStateTracker().getTurn());
 
             if (depth >= 3 && movesSearched > 4 && !isCapture && !isPromotion && !inCheck) {
                 int reduction = LMR_TABLE[depth][Math.min(movesSearched, 63)];
