@@ -5,7 +5,14 @@ import core.*;
 import pieces.*;
 
 public class FirstEngine {
+    public String name;
+    
+    // speed/efficiency instrumentation
     public long nodesSearched = 0;
+    public long lastNodesSearched = 0;
+    public int lastDepthReached = 0;
+    public long lastElapsedMs = 0;
+    public long lastNodesPerSecond = 0;
 
     // hard coded piece values
     private static final double PAWN = 100.0;
@@ -129,6 +136,17 @@ public class FirstEngine {
     }
 
     public boolean getColor() { return this.color; }
+
+    private volatile boolean stopSearch = false;
+    private long searchStopTime = 0L;
+    private boolean isTimeUp() {
+        if (stopSearch) return true;
+        if (searchStopTime > 0 && System.currentTimeMillis() >= searchStopTime) {
+            stopSearch = true;
+            return true;
+        }
+        return false;
+    }
     
     private void updateHistory(int color, int from, int to, int bonus) {
         int current = historyTable[color][from][to];
@@ -149,6 +167,8 @@ public class FirstEngine {
     public FirstEngine(Board game, boolean color) {
         this.game = game;
         this.color = color;
+
+        this.name = "FirstEngine";
     }
     
     public double Evaluate() {
@@ -288,6 +308,7 @@ public class FirstEngine {
     
     public double SearchCaptures(double alpha, double beta, int ply) {
         nodesSearched++;
+        if (isTimeUp()) return alpha;
         if (ply >= 63) {
             return Evaluate();
         }
@@ -306,9 +327,12 @@ public class FirstEngine {
         int[] sortedMoves = OrderMoves(moves, -1, ply);
         
         for (int move : sortedMoves) {
+            if (isTimeUp()) break;
             this.game.makeMove(move);
             double score = -SearchCaptures(-beta, -alpha, ply + 1);
             this.game.unmakeMove(move);
+
+            if (isTimeUp()) break;
             
             if (score >= beta) {
                 return beta;
@@ -323,6 +347,7 @@ public class FirstEngine {
         if (Thread.currentThread().isInterrupted()) {
             return 0;
         }
+        if (isTimeUp()) return alpha;
 
         nodesSearched++;
         long hash = this.game.getCurrentHash();
@@ -368,8 +393,11 @@ public class FirstEngine {
                 double nullScore = -Search(depth - 1 - R, -beta, -beta + 1, ply + 1, false);
                 this.game.unmakeNullMove();
 
+                if (isTimeUp()) return alpha;
+
                 if (depth >= 6 && nullScore >= beta) {
                     double verifyScore = Search(depth - 1, alpha, beta, ply, false);
+                    if (isTimeUp()) return alpha;
                     if (verifyScore >= beta) return beta;
                 }
             }
@@ -386,6 +414,11 @@ public class FirstEngine {
         for (int move : orderedMoves) {
             this.game.makeMove(move);
             movesSearched++;
+
+            if (isTimeUp()) {
+                this.game.unmakeMove(move);
+                break;
+            }
 
             double score;
 
@@ -405,6 +438,8 @@ public class FirstEngine {
             }
 
             this.game.unmakeMove(move);
+
+            if (isTimeUp()) break;
 
             if (score >= beta) {
                 // update the transposition table with the beta cutoff
@@ -481,8 +516,14 @@ public class FirstEngine {
         long timeLimit = (TotalTimeLeft/40) + increment;
 
         if ((this.game.getStateTracker().getPly() / 2) <= 4) timeLimit /= 3;
+
+        stopSearch = false;
+        searchStopTime = startTime + timeLimit - 10;
+        if (searchStopTime <= startTime) searchStopTime = startTime + 1;
         
         int overallBestMove = -1;
+        int completedDepth = 0;
+        nodesSearched = 0;
 
         double previousScore = 0.0;
         double WINDOW = 50.0;
@@ -512,9 +553,17 @@ public class FirstEngine {
                 
                 for (int move : orderedMoves) {
                     this.game.makeMove(move);
+
+                    if (isTimeUp()) {
+                        this.game.unmakeMove(move);
+                        break;
+                    }
+
                     // Search the next level
                     double score = -Search(currentDepth - 1, -beta, -alpha, 1, true);
                     this.game.unmakeMove(move);
+
+                    if (isTimeUp()) break;
     
                     if (score > bestScoreThisIteration) {
                         bestScoreThisIteration = score;
@@ -530,6 +579,10 @@ public class FirstEngine {
                     }
                 }
 
+                if (isTimeUp()) {
+                    break;
+                }
+
                 if (bestScoreThisIteration <= originalAlpha) {
                     alpha = Double.NEGATIVE_INFINITY;
                     continue;
@@ -541,10 +594,13 @@ public class FirstEngine {
                 previousScore = bestScoreThisIteration;
                 if (bestMoveThisIteration != -1) {
                     overallBestMove = bestMoveThisIteration;
+                    completedDepth = currentDepth;
                 }
 
                 break;
             }
+
+            if (isTimeUp()) break;
             
             long timeElapsed = System.currentTimeMillis() - startTime;
             if (timeElapsed > timeLimit / 2) {
@@ -552,8 +608,38 @@ public class FirstEngine {
                 break;
             }
         }
+
+        long elapsedMs = Math.max(1, System.currentTimeMillis() - startTime);
+        lastNodesSearched = nodesSearched;
+        lastDepthReached = completedDepth;
+        lastElapsedMs = elapsedMs;
+        lastNodesPerSecond = (nodesSearched * 1000L) / elapsedMs;
         
         return overallBestMove;
+    }
+
+    public static long perft(Board board, int depth) {
+        if (depth == 0) return 1L;
+        long nodes = 0L;
+        ArrayList<Integer> moves = board.getLegalMoves(board.getStateTracker().getTurn());
+        for (int move : moves) {
+            board.makeMove(move);
+            nodes += perft(board, depth - 1);
+            board.unmakeMove(move);
+        }
+        return nodes;
+    }
+
+    public static void main(String[] args) {
+        int depth = 4;
+        if (args.length > 0) {
+            try { depth = Integer.parseInt(args[0]); } catch (NumberFormatException ignored) {}
+        }
+        Board board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        System.out.println("FirstEngine perft depth " + depth);
+        long start = System.currentTimeMillis();
+        long nodes = perft(board, depth);
+        System.out.println("Nodes: " + nodes + " time=" + (System.currentTimeMillis() - start) + "ms");
     }
 
 }

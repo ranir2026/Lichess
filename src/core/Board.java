@@ -22,11 +22,11 @@ public class Board
         this.convertFENToPosition(FEN);
     }
     
-    private int updateCastlingRights(int start, int end, int flags) {
+    private int updateCastlingRights(Piece movingPiece, int start, int end, int flags) {
         int rights = stateTracker.getCastlingRights();
         
-        if (gameBoard[start] instanceof King) {
-            if (gameBoard[start].getColor()) rights &= ~0b0011; 
+        if (movingPiece instanceof King) {
+            if (movingPiece.getColor()) rights &= ~0b0011; 
             else rights &= ~0b1100;
         }
         
@@ -146,7 +146,7 @@ public class Board
 
         currentHash ^= Zobrist.sideToMove;
 
-        int newCastlingRights = updateCastlingRights(startSquare, endSquare, flags);
+        int newCastlingRights = updateCastlingRights(movingPiece, startSquare, endSquare, flags);
         currentHash ^= Zobrist.castlingRights[newCastlingRights];
 
         this.stateTracker.pushState(newEPSquare, newCastlingRights);
@@ -353,8 +353,11 @@ public class Board
         this.gameBoard = new Piece[64];
         int row = 0;
         int col = 0;
-        
-        for (char c : FEN.toCharArray()) {
+
+        // only parse the board portion (before the first space)
+        String boardPart = FEN.split(" ")[0];
+
+        for (char c : boardPart.toCharArray()) {
             if (c == '/') { // slashes indicate new rows
                 row++;
                 col = 0;
@@ -383,6 +386,7 @@ public class Board
             }
         }
 
+        this.stateTracker.pushState(-1, 15);
         this.currentHash = 0L;
         for (int i = 0; i < 64; i++) {
             Piece p = gameBoard[i];
