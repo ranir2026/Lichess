@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 public class UciInterface {
     private static Board board = new Board();
-    private static SecondEngine engine;
+    private static TurquoiseBot engine;
 
     public static void main(String[] args) {
         // try-with-resources ensures sc.close() is called automatically
@@ -106,7 +106,7 @@ public class UciInterface {
         int timeLeft = (board.turn == Board.WHITE) ? wtime : btime;
         int increment = (board.turn == Board.WHITE) ? winc : binc;
 
-        engine = new SecondEngine(board);
+        engine = new TurquoiseBot(board);
         
         if (timeLeft == 0) timeLeft = 5000; 
 

@@ -460,6 +460,7 @@ public class Board {
         allPieces = 0L;
         enPassantSquare = -1;
         castlingRights = 0;
+        historyPtr = 0;
 
         String[] parts = fen.split(" ");
         String boardPart = parts[0];

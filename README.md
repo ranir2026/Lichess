@@ -148,3 +148,24 @@ A classical chess engine written with Java. --RR
     - z = 7.80 // p-value = 3.1e-15
   - LoS ~= 1.0
   - ELO Change: **+88.8 ± 19.9**
+
+  ## SecondEngine v2.1 (6/23/2026)
+
+  ### New Additions
+  - Mobility bonuses for Bishop, Rook, Knight, Queen
+  - Tapered mobility bonuses
+
+  ## SecondEngine v2.1 vs SecondEngine v2.0
+| Result | Count |
+|---|---|
+| Wins | 276 |
+| Losses | 88 |
+| Draws | 636 |
+
+  ### Statistics
+  - Wins: 276 | Losses: 88 | Draws: 636
+  - One-sample z-test for a proportion
+    H0: p = 0.5 // Ha: p > 0.5 // α = 0.01
+    z = 5.95 // p-value = 1.4e-9
+  - LoS ~= 1.0
+  - Elo Change: **+66.0 ± 22.0**

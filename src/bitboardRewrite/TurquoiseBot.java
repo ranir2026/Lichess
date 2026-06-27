@@ -1,9 +1,9 @@
 package bitboardRewrite;
 
-public class SecondEngine extends Engine {
-    public String name;
-    public double version;
-    public String author;
+public class TurquoiseBot extends Engine {
+    String name;
+    double version;
+    String author;
 
     // default piece values
     private static final int PAWN = 100;
@@ -15,11 +15,24 @@ public class SecondEngine extends Engine {
     private static final int DRAW_SCORE = 0;
     private static final int REPETITION_DRAW_SCORE = -2;
 
+    private static final int KNIGHT_MOB_MG = 4;
+    private static final int KNIGHT_MOB_EG = 3;
+    private static final int BISHOP_MOB_MG = 4;
+    private static final int BISHOP_MOB_EG = 3;
+    private static final int ROOK_MOB_MG   = 2;
+    private static final int ROOK_MOB_EG   = 4;
+    private static final int QUEEN_MOB_MG  = 1;
+    private static final int QUEEN_MOB_EG  = 2;
+
     // interpolation constant for keeping track
     // of how far the game has progressed (endgame vs middlegame)
     private static final int TOTAL_PHASE = 24;
 
     private Board board;
+
+    public String getName() { return name; }
+    public double getVersion() {return version; }
+
 
     // transposition table
     public static final int TABLE_SIZE = 1048576; // 2^20 entries
@@ -39,9 +52,6 @@ public class SecondEngine extends Engine {
     // search control
     private volatile boolean stopSearch = false;
     private long searchStopTime = 0L;
-
-    public String getName() { return name; }
-    public double getVersion() {return version; }
 
     private boolean isTimeUp() {
         if (stopSearch) return true;
@@ -171,14 +181,14 @@ public class SecondEngine extends Engine {
         historyTable[color][from][to] = current + bonus - (current * Math.abs(bonus) / MAX_HISTORY);
     }
 
-    public SecondEngine(Board board) {
+    public TurquoiseBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
         this.quietMoveStack = new int[128][MoveGenerator.MAX_MOVES];
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.0;
+        this.version = 2.1;
     }
 
 
@@ -187,39 +197,77 @@ public class SecondEngine extends Engine {
         int blackScore = 0;
         int phase = 0;
 
+        // we need phase before the main loop so king PST interpolation is correct,
+        // and also so we can interpolate mobility weights between mg and eg.
         for (int i = 0; i < 12; i++) {
-            long pieces = board.pieceBitboards[i];
-            int count = Long.bitCount(pieces);
-            
-            // calculate how far (phase) the game has progressed
+            int count = Long.bitCount(board.pieceBitboards[i]);
             if (i == Board.WQ || i == Board.BQ) phase += count * 4;
             else if (i == Board.WR || i == Board.BR) phase += count * 2;
             else if (i == Board.WN || i == Board.BN || i == Board.WB || i == Board.BB) phase += count * 1;
+        }
+        int currentPhase = Math.min(phase, TOTAL_PHASE);
 
-            // count material and give bonuses based on piece placement
+        // precompute combined occupancy once -- used for all sliding-piece mobility lookups
+        long allPieces = board.allPieces;
+
+        // material + PST + mobility
+        for (int i = 0; i < 12; i++) {
+            long pieces = board.pieceBitboards[i];
+            boolean isWhite = (i < 6);
+
+            // friendly pieces -- mobility squares occupied by own pieces don't count
+            long ownPieces = isWhite ? board.whitePieces : board.blackPieces;
+
             while (pieces != 0) {
                 int sq = Long.numberOfTrailingZeros(pieces);
                 pieces &= pieces - 1;
 
                 int score = getPieceValue(i);
                 int pstScore = 0;
-                int flipSq = (i >= 6) ? sq ^ 56 : sq; // flip the orientation for black pieces
+                int flipSq = isWhite ? sq : sq ^ 56; // flip orientation for black
 
                 if (i == Board.WK || i == Board.BK) {
-                    // use a separate endgame table for kings to encourage them to stay tucked away
-                    // during the middle game for king safety, but be active in the endgame to help 
-                    // pawns push up the board
+                    // interpolate king PST between middlegame and endgame
                     int mg = KING_PST[flipSq];
                     int eg = KING_ENDGAME_PST[flipSq];
-
-                    int currentPhase = Math.min(phase, TOTAL_PHASE);
                     pstScore = ((mg * currentPhase) + (eg * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
                 } else {
                     pstScore = getStandardPST(i, flipSq);
                 }
 
-                if (i < 6) whiteScore += (score + pstScore);
-                else blackScore += (score + pstScore);
+                // count the number of squares this piece can move to (excluding own pieces).
+                // we use the raw attack tables rather than legal-move generation to keep
+                // evaluation fast -- this is the standard approach and still a strong signal.
+                int mobilityBonus = 0;
+                int type = i % 6;
+
+                if (type == Board.WN) { // knight
+                    int mobCount = Long.bitCount(AttackTables.knightAttacks[sq] & ~ownPieces);
+                    int mgBonus = mobCount * KNIGHT_MOB_MG;
+                    int egBonus = mobCount * KNIGHT_MOB_EG;
+                    mobilityBonus = ((mgBonus * currentPhase) + (egBonus * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+
+                } else if (type == Board.WB) { // bishop
+                    int mobCount = Long.bitCount(AttackTables.getBishopAttacks(sq, allPieces) & ~ownPieces);
+                    int mgBonus = mobCount * BISHOP_MOB_MG;
+                    int egBonus = mobCount * BISHOP_MOB_EG;
+                    mobilityBonus = ((mgBonus * currentPhase) + (egBonus * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+
+                } else if (type == Board.WR) { // rook
+                    int mobCount = Long.bitCount(AttackTables.getRookAttacks(sq, allPieces) & ~ownPieces);
+                    int mgBonus = mobCount * ROOK_MOB_MG;
+                    int egBonus = mobCount * ROOK_MOB_EG;
+                    mobilityBonus = ((mgBonus * currentPhase) + (egBonus * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+
+                } else if (type == Board.WQ) { // queen
+                    int mobCount = Long.bitCount(AttackTables.getQueenAttacks(sq, allPieces) & ~ownPieces);
+                    int mgBonus = mobCount * QUEEN_MOB_MG;
+                    int egBonus = mobCount * QUEEN_MOB_EG;
+                    mobilityBonus = ((mgBonus * currentPhase) + (egBonus * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+                }
+
+                if (isWhite) whiteScore += (score + pstScore + mobilityBonus);
+                else blackScore += (score + pstScore + mobilityBonus);
             }
         }
 

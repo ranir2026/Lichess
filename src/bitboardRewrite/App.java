@@ -184,8 +184,8 @@ public class App {
 
                             if (board != null) {
                                 isBotThinking = true;
-                                SecondEngine engine = new SecondEngine(board);
-                                int botMove = engine.getBestMove(5000, 0);
+                                Engine engine = new TurquoiseBot(board);
+                                int botMove = engine.getBestMove(10000, 0);
                                 if (botMove != -1) {
                                     board.makeMove(botMove);
                                 }
