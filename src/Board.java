@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class Board {
     // to avoid garbage collection, use an array of long type
     // binary numbers to represent different aspects of the

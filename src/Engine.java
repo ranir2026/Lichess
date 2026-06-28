@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class Engine {
     public long nodesSearched = 0;
     public long lastNodesSearched = 0;

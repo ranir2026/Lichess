@@ -1,4 +1,3 @@
-package bitboardRewrite;
 public class TranspositionTableEntry {
     public long key;
     public double score;

@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 import java.util.concurrent.*;
 import java.io.*;
 

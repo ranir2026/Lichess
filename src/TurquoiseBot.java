@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class TurquoiseBot extends Engine {
     String name;
     double version;

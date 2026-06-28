@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class SecondEngine extends Engine {
     public String name;
     public double version;

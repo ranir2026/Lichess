@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 import java.io.*;
 
 public class AttackTables {

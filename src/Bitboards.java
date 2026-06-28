@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class Bitboards {
     public static long setBit(long board, int square) {
         return board | (1L << square);

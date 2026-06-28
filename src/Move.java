@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class Move {
     // flags
     public static final int QUIET_MOVE        = 0b0000 << 12;

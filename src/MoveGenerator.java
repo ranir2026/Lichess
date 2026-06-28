@@ -1,5 +1,3 @@
-package bitboardRewrite;
-
 public class MoveGenerator {
     public static final int MAX_MOVES = 256;
     private static final long RANK_7 = 0x00FF000000000000L; 
