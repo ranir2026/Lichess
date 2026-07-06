@@ -43,8 +43,8 @@ public class App {
             Graphics2D g2 = (Graphics2D) g;
 
             int size = windowHeight / 8;
-            Color lightSquare = new Color(181, 136, 99);
-            Color darkSquare = new Color(240, 217, 181);
+            Color darkSquare = new Color(181, 136, 99);
+            Color lightSquare = new Color(240, 217, 181);
 
             for (int i = 0; i < 64; i++) {
                 int boardRow = i / 8;
@@ -183,7 +183,6 @@ public class App {
                             if (board != null) {
                                 isBotThinking = true;
                                 Engine engine = new TurquoiseBot(board);
-                                engine.loadOpeningBook("openings.pgn");
                                 int botMove = engine.getBestMove(10000, 0);
                                 if (botMove != -1) {
                                     board.makeMove(botMove);

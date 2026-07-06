@@ -27,7 +27,6 @@ public class TurquoiseBot extends Engine {
     private static final int TOTAL_PHASE = 24;
 
     private Board board;
-    private OpeningBook openingBook = new OpeningBook();
 
     public String getName() { return name; }
     public double getVersion() {return version; }
@@ -180,26 +179,14 @@ public class TurquoiseBot extends Engine {
         historyTable[color][from][to] = current + bonus - (current * Math.abs(bonus) / MAX_HISTORY);
     }
 
-    public void setBoard(Board board) {
-        this.board = board;
-    }
-
     public TurquoiseBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
         this.quietMoveStack = new int[128][MoveGenerator.MAX_MOVES];
 
-        this.name = "TurquoiseBot (Opening Books)";
+        this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.2;
-    }
-
-    public void loadOpeningBook(String path) {
-        try {
-            openingBook.loadPGN(path);
-        } catch (java.io.IOException e) {
-            System.err.println("[Book] Failed to load: " + e.getMessage());
-        }
+        this.version = 2.1;
     }
 
 
@@ -596,17 +583,20 @@ public class TurquoiseBot extends Engine {
         }
 
         // hardcode in 1. e4 e5
-        int bookMove = openingBook.getBestBookMove(board);
-        if (bookMove != -1) {
-            try (java.io.PrintWriter log = new java.io.PrintWriter(new java.io.FileWriter("book_debug.log", true))) {
-                log.println("Book hit at ply " + board.getMoveCount() + " move=" + bookMove + " bookSize=" + openingBook.size());
-            } catch (Exception ignored) {}    
-            return bookMove;
-        }
+        if (board.getMoveCount() == 1 && board.turn == Board.BLACK) {
+            int e4 = 3 * 8 + 4; // e4 = 28
+            int e5 = 4 * 8 + 4; // e5 = 36
+            int e7 = 6 * 8 + 4; // e7 = 52
 
-        try (java.io.PrintWriter log = new java.io.PrintWriter(new java.io.FileWriter("book_debug.log", true))) {
-            log.println("Book miss at ply " + board.getMoveCount() + " bookSize=" + openingBook.size());
-        } catch (Exception ignored) {}
+            if (board.boardArray[e4] == Board.WP && board.boardArray[e5] == -1 && board.boardArray[e7] == Board.BP) {
+                int reply = Move.encode(e7, e5, Move.DOUBLE_PAWN);
+                int[] quick = new int[MoveGenerator.MAX_MOVES];
+                int n = MoveGenerator.generateLegalMoves(board, quick);
+                for (int i = 0; i < n; i++) {
+                    if (quick[i] == reply) return reply;
+                }
+            }
+        }
 
         int overallBestMove = -1;
         stopSearch = false;

@@ -9,5 +9,4 @@ public class Engine {
 
     public String getName() { return ""; }
     public double getVersion() { return 0.0; }
-    public void loadOpeningBook(String s) {}
 }
