@@ -17,6 +17,11 @@ public class App {
         private Board board;
         private volatile boolean isBotThinking = false;
 
+        // separate lightweight instance just for evaluate() -- reusing the search engine
+        // here would mean reallocating its 1M-entry transposition table on every update
+        private TurquoiseBot evalEngine;
+        private JLabel evalLabel;
+
         // drag state
         private int draggedPiece = -1;
         private int sourceIndex = -1;
@@ -27,6 +32,7 @@ public class App {
 
         public BoardPanel(Board board) {
             this.board = board;
+            this.evalEngine = new TurquoiseBot(board);
             try {
                 spriteSheet = ImageIO.read(new File("lib/pieces.png"));
             } catch (IOException e) {
@@ -37,14 +43,28 @@ public class App {
             addMouseMotionListener(this);
         }
 
+        public void setEvalLabel(JLabel evalLabel) {
+            this.evalLabel = evalLabel;
+            updateEvalDisplay();
+        }
+
+        private void updateEvalDisplay() {
+            if (evalLabel == null) return;
+            int raw = evalEngine.evaluate();
+            // evaluate() is relative to the side to move -- flip back to White's perspective
+            // so the display doesn't flip sign every ply regardless of whose turn it is
+            int whiteCentipawns = (board.turn == Board.WHITE) ? raw : -raw;
+            evalLabel.setText(String.format("Eval: %+.2f", whiteCentipawns / 100.0));
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
 
             int size = windowHeight / 8;
-            Color darkSquare = new Color(181, 136, 99);
-            Color lightSquare = new Color(240, 217, 181);
+            Color lightSquare = new Color(181, 136, 99);
+            Color darkSquare = new Color(240, 217, 181);
 
             for (int i = 0; i < 64; i++) {
                 int boardRow = i / 8;
@@ -172,6 +192,7 @@ public class App {
 
                     if (chosen != -1) {
                         board.makeMove(chosen);
+                        updateEvalDisplay();
                         repaint();
 
                         // if opponent is the engine, make bot move
@@ -188,7 +209,7 @@ public class App {
                                     board.makeMove(botMove);
                                 }
                                 isBotThinking = false;
-                                SwingUtilities.invokeLater(() -> repaint());
+                                SwingUtilities.invokeLater(() -> { updateEvalDisplay(); repaint(); });
                             }
                         }).start();
                     }
@@ -212,7 +233,7 @@ public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("BitboardRewrite - Play Bot");
-            frame.setSize(1000, 850);
+            frame.setSize(1000, 900);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             Board board = new Board();
@@ -220,7 +241,14 @@ public class App {
             // board.convertFENtoPosition("3k4/Q7/8/8/8/3K4/8/8 w - - 0 1");
 
             BoardPanel panel = new BoardPanel(board);
-            frame.getContentPane().add(panel);
+            frame.getContentPane().add(panel, BorderLayout.CENTER);
+
+            JLabel evalLabel = new JLabel("Eval: +0.00", SwingConstants.CENTER);
+            evalLabel.setFont(evalLabel.getFont().deriveFont(Font.BOLD, 20f));
+            evalLabel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+            frame.getContentPane().add(evalLabel, BorderLayout.NORTH);
+            panel.setEvalLabel(evalLabel);
+
             frame.setVisible(true);
         });
     }
