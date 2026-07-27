@@ -59,6 +59,28 @@ public class TurquoiseBot extends Engine {
         }
     }
 
+    private static final int ISOLATED_PAWN_PENALTY_MG = 12;
+    private static final int ISOLATED_PAWN_PENALTY_EG = 18;
+
+    // ADJACENT_FILE_MASKS[f]: every square on the two files next to file f (all ranks).
+    // If a pawn has no friendly pawn anywhere in this mask, it's isolated -- no pawn on
+    // either neighboring file can ever step up to defend it.
+    private static final long[] ADJACENT_FILE_MASKS = new long[8];
+    static {
+        long[] fileMasks = new long[8];
+        for (int f = 0; f < 8; f++) {
+            long mask = 0L;
+            for (int r = 0; r < 8; r++) mask |= (1L << (r * 8 + f));
+            fileMasks[f] = mask;
+        }
+        for (int f = 0; f < 8; f++) {
+            long adjacent = 0L;
+            if (f > 0) adjacent |= fileMasks[f - 1];
+            if (f < 7) adjacent |= fileMasks[f + 1];
+            ADJACENT_FILE_MASKS[f] = adjacent;
+        }
+    }
+
     // interpolation constant for keeping track
     // of how far the game has progressed (endgame vs middlegame)
     private static final int TOTAL_PHASE = 24;
@@ -255,6 +277,23 @@ public class TurquoiseBot extends Engine {
         return total;
     }
 
+    private int computeIsolatedPawnPenalty(long ownPawns, int currentPhase) {
+        int total = 0;
+        long pawns = ownPawns;
+
+        while (pawns != 0) {
+            int sq = Long.numberOfTrailingZeros(pawns);
+            pawns &= pawns - 1;
+
+            int file = sq % 8;
+            if ((ownPawns & ADJACENT_FILE_MASKS[file]) != 0) continue; // supported by a pawn on a neighboring file
+
+            total += ((ISOLATED_PAWN_PENALTY_MG * currentPhase) + (ISOLATED_PAWN_PENALTY_EG * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+        }
+
+        return total;
+    }
+
     public TurquoiseBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
@@ -262,7 +301,7 @@ public class TurquoiseBot extends Engine {
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.3;
+        this.version = 2.4;
     }
 
 
@@ -352,6 +391,11 @@ public class TurquoiseBot extends Engine {
         int blackPassedBonus = computePassedPawnBonus(board.pieceBitboards[Board.BP], board.pieceBitboards[Board.WP], false, blackKingSq, whiteKingSq, currentPhase);
         whiteScore += whitePassedBonus;
         blackScore += blackPassedBonus;
+
+        int whiteIsolatedPenalty = computeIsolatedPawnPenalty(board.pieceBitboards[Board.WP], currentPhase);
+        int blackIsolatedPenalty = computeIsolatedPawnPenalty(board.pieceBitboards[Board.BP], currentPhase);
+        whiteScore -= whiteIsolatedPenalty;
+        blackScore -= blackIsolatedPenalty;
 
         int perspective = (board.turn == Board.WHITE) ? 1 : -1;
         return (whiteScore - blackScore) * perspective;
