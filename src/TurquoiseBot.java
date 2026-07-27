@@ -22,6 +22,43 @@ public class TurquoiseBot extends Engine {
     private static final int QUEEN_MOB_MG  = 1;
     private static final int QUEEN_MOB_EG  = 2;
 
+    // Passed pawn bonus, indexed by how many ranks the pawn has advanced from its own
+    // back rank (0 = home rank, 6 = one step from promoting). Index 0 and 7 are unused
+    // padding since a pawn is never on its own back rank or the promotion rank.
+    private static final int[] PASSED_PAWN_MG = {0, 5, 8, 15, 25, 40, 60, 0};
+    private static final int[] PASSED_PAWN_EG = {0, 10, 20, 35, 60, 100, 150, 0};
+
+    // endgame-only bonus per square of king-distance advantage to the pawn's promotion
+    // square (rewards a friendly king escorting the pawn, penalizes a nearby enemy king)
+    private static final int KING_PROXIMITY_WEIGHT = 5;
+
+    // PASSED_MASK_WHITE[sq] / PASSED_MASK_BLACK[sq]: squares on the same file or adjacent
+    // files, ahead of sq from that color's perspective. If any enemy pawn occupies one of
+    // these squares, it can block or capture the pawn on its way to promotion, so the pawn
+    // on sq is NOT passed.
+    private static final long[] PASSED_MASK_WHITE = new long[64];
+    private static final long[] PASSED_MASK_BLACK = new long[64];
+    static {
+        for (int sq = 0; sq < 64; sq++) {
+            int rank = sq / 8;
+            int file = sq % 8;
+            int loFile = Math.max(0, file - 1);
+            int hiFile = Math.min(7, file + 1);
+
+            long whiteMask = 0L;
+            for (int r = rank + 1; r < 8; r++) {
+                for (int f = loFile; f <= hiFile; f++) whiteMask |= (1L << (r * 8 + f));
+            }
+            PASSED_MASK_WHITE[sq] = whiteMask;
+
+            long blackMask = 0L;
+            for (int r = 0; r < rank; r++) {
+                for (int f = loFile; f <= hiFile; f++) blackMask |= (1L << (r * 8 + f));
+            }
+            PASSED_MASK_BLACK[sq] = blackMask;
+        }
+    }
+
     // interpolation constant for keeping track
     // of how far the game has progressed (endgame vs middlegame)
     private static final int TOTAL_PHASE = 24;
@@ -179,6 +216,45 @@ public class TurquoiseBot extends Engine {
         historyTable[color][from][to] = current + bonus - (current * Math.abs(bonus) / MAX_HISTORY);
     }
 
+    private int chebyshevDistance(int sq1, int sq2) {
+        int fileDiff = Math.abs((sq1 % 8) - (sq2 % 8));
+        int rankDiff = Math.abs((sq1 / 8) - (sq2 / 8));
+        return Math.max(fileDiff, rankDiff);
+    }
+
+    private int computePassedPawnBonus(long ownPawns, long enemyPawns, boolean isWhite,
+                                        int ownKingSq, int enemyKingSq, int currentPhase) {
+        int total = 0;
+        long pawns = ownPawns;
+
+        while (pawns != 0) {
+            int sq = Long.numberOfTrailingZeros(pawns);
+            pawns &= pawns - 1;
+
+            long mask = isWhite ? PASSED_MASK_WHITE[sq] : PASSED_MASK_BLACK[sq];
+            if ((enemyPawns & mask) != 0) continue; // an enemy pawn can block/capture it -- not passed
+
+            int rank = sq / 8;
+            int advancement = isWhite ? rank : (7 - rank);
+
+            // king tropism: friendly king escorting the pawn helps, enemy king nearby hurts.
+            // only meaningful in the endgame, so it lives entirely in the EG term and gets
+            // phased out automatically as currentPhase rises toward the middlegame. Scaled by
+            // advancement too -- a pawn on its 2nd rank isn't in a promotion race yet, so king
+            // distance shouldn't matter much until the pawn is actually close to queening.
+            int promoSq = isWhite ? (56 + (sq % 8)) : (sq % 8);
+            int kingDistDiff = chebyshevDistance(enemyKingSq, promoSq) - chebyshevDistance(ownKingSq, promoSq);
+            int kingBonus = (kingDistDiff * KING_PROXIMITY_WEIGHT * advancement) / 6;
+
+            int mgBonus = PASSED_PAWN_MG[advancement];
+            int egBonus = PASSED_PAWN_EG[advancement] + kingBonus;
+
+            total += ((mgBonus * currentPhase) + (egBonus * (TOTAL_PHASE - currentPhase))) / TOTAL_PHASE;
+        }
+
+        return total;
+    }
+
     public TurquoiseBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
@@ -186,7 +262,7 @@ public class TurquoiseBot extends Engine {
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.1;
+        this.version = 2.3;
     }
 
 
@@ -268,6 +344,14 @@ public class TurquoiseBot extends Engine {
                 else blackScore += (score + pstScore + mobilityBonus);
             }
         }
+
+        int whiteKingSq = board.getKingSquare(Board.WHITE);
+        int blackKingSq = board.getKingSquare(Board.BLACK);
+
+        int whitePassedBonus = computePassedPawnBonus(board.pieceBitboards[Board.WP], board.pieceBitboards[Board.BP], true, whiteKingSq, blackKingSq, currentPhase);
+        int blackPassedBonus = computePassedPawnBonus(board.pieceBitboards[Board.BP], board.pieceBitboards[Board.WP], false, blackKingSq, whiteKingSq, currentPhase);
+        whiteScore += whitePassedBonus;
+        blackScore += blackPassedBonus;
 
         int perspective = (board.turn == Board.WHITE) ? 1 : -1;
         return (whiteScore - blackScore) * perspective;
