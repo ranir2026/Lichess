@@ -192,6 +192,4 @@ A classical chess engine written with Java. --RR
 - Score: 55.9% (558.5/1000)
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +6.61, verdict: H1 ACCEPTED (B is stronger)
 - LOS ≈ 100.0%
-- Elo Change: **+40.8 [+26.3, +55.5]**
-
-This snapshot is frozen as `PVSBot` (src/PVSBot.java) to serve as the new baseline for future A/B testing.
+- Elo Change: **+40.8 ± 14.5**
