@@ -55,7 +55,7 @@ public class SuiteRunner {
     public static String ENGINE_A_NAME = "A";
     public static String ENGINE_B_NAME = "B";
 
-    private static Engine makeEngineA(Board b) { return new MobilityBot(b); }
+    private static Engine makeEngineA(Board b) { return new PVSBot(b); }
     private static Engine makeEngineB(Board b) { return new TurquoiseBot(b); } // <<< swap here
 
     // ------------------------------------------------------------------ main

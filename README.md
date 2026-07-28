@@ -169,3 +169,29 @@ A classical chess engine written with Java. --RR
     z = 5.95 // p-value = 1.4e-9
   - LoS ~= 1.0
   - Elo Change: **+66.0 ± 22.0**
+
+---
+
+## TurquoiseBot v2.5 (7/28/2026)
+
+### New Additions
+- Isolated Pawn Penalty
+- Passed Pawn Evaluation (replaces doubled-pawn penalty), with king-proximity/tropism scaling
+- Principal Variation Search (PVS)
+
+### Match Suite (vs MobilityBot v2.1)
+
+| Result | Count |
+|---|---|
+| Wins | 312 |
+| Losses | 195 |
+| Draws | 493 |
+
+### Statistics
+- Total games: 1000 (500 pairs)
+- Score: 55.9% (558.5/1000)
+- SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +6.61, verdict: H1 ACCEPTED (B is stronger)
+- LOS ≈ 100.0%
+- Elo Change: **+40.8 [+26.3, +55.5]**
+
+This snapshot is frozen as `PVSBot` (src/PVSBot.java) to serve as the new baseline for future A/B testing.
