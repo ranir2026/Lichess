@@ -193,3 +193,25 @@ A classical chess engine written with Java. --RR
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +6.61, verdict: H1 ACCEPTED (B is stronger)
 - LOS ≈ 100.0%
 - Elo Change: **+40.8 ± 14.5**
+
+---
+
+## TurquoiseBot v2.6 (7/29/2026)
+
+### New Additions
+- Texel-tuned evaluation constants
+
+### Match Suite (vs PVSBot v2.5)
+
+| Result | Count |
+|---|---|
+| Wins | 347 |
+| Losses | 173 |
+| Draws | 480 |
+
+### Statistics
+- Total games: 1000 (500 pairs)
+- Score: 58.7% (587.0/1000)
+- SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +10.72
+- LOS ≈ 100.0%
+- Elo Change: **+61.1 ± 14.5**

@@ -4,33 +4,33 @@ public class TurquoiseBot extends Engine {
     String author;
 
     // default piece values
-    private static final int PAWN = 100;
-    private static final int KNIGHT = 320;
-    private static final int BISHOP = 330;
-    private static final int ROOK = 500;
-    private static final int QUEEN = 900;
+    private static int PAWN   = 93;
+    private static int KNIGHT = 338;
+    private static int BISHOP = 352;
+    private static int ROOK   = 526;
+    private static int QUEEN  = 950;
     private static final int MATE_SCORE = 100000;
     private static final int DRAW_SCORE = 0;
     private static final int REPETITION_DRAW_SCORE = -2;
 
-    private static final int KNIGHT_MOB_MG = 4;
-    private static final int KNIGHT_MOB_EG = 3;
-    private static final int BISHOP_MOB_MG = 4;
-    private static final int BISHOP_MOB_EG = 3;
-    private static final int ROOK_MOB_MG   = 2;
-    private static final int ROOK_MOB_EG   = 4;
-    private static final int QUEEN_MOB_MG  = 1;
-    private static final int QUEEN_MOB_EG  = 2;
+    private static int KNIGHT_MOB_MG = 2;
+    private static int KNIGHT_MOB_EG = -2;
+    private static int BISHOP_MOB_MG = 6;
+    private static int BISHOP_MOB_EG = 0;
+    private static int ROOK_MOB_MG   = 4;
+    private static int ROOK_MOB_EG   = 5;
+    private static int QUEEN_MOB_MG  = 1;
+    private static int QUEEN_MOB_EG  = 13;
 
     // Passed pawn bonus, indexed by how many ranks the pawn has advanced from its own
     // back rank (0 = home rank, 6 = one step from promoting). Index 0 and 7 are unused
     // padding since a pawn is never on its own back rank or the promotion rank.
-    private static final int[] PASSED_PAWN_MG = {0, 5, 8, 15, 25, 40, 60, 0};
-    private static final int[] PASSED_PAWN_EG = {0, 10, 20, 35, 60, 100, 150, 0};
+    private static int[] PASSED_PAWN_MG = {0, 8, 10, 2, 25, 63, 69, 0};
+    private static int[] PASSED_PAWN_EG = {0, 18, 24, 57, 91, 150, 184, 0};
 
     // endgame-only bonus per square of king-distance advantage to the pawn's promotion
     // square (rewards a friendly king escorting the pawn, penalizes a nearby enemy king)
-    private static final int KING_PROXIMITY_WEIGHT = 5;
+    private static int KING_PROXIMITY_WEIGHT = 27;
 
     // PASSED_MASK_WHITE[sq] / PASSED_MASK_BLACK[sq]: squares on the same file or adjacent
     // files, ahead of sq from that color's perspective. If any enemy pawn occupies one of
@@ -59,8 +59,8 @@ public class TurquoiseBot extends Engine {
         }
     }
 
-    private static final int ISOLATED_PAWN_PENALTY_MG = 12;
-    private static final int ISOLATED_PAWN_PENALTY_EG = 18;
+    private static int ISOLATED_PAWN_PENALTY_MG = 20;
+    private static int ISOLATED_PAWN_PENALTY_EG = 8;
 
     // ADJACENT_FILE_MASKS[f]: every square on the two files next to file f (all ranks).
     // If a pawn has no friendly pawn anywhere in this mask, it's isolated -- no pawn on
@@ -120,81 +120,81 @@ public class TurquoiseBot extends Engine {
     }
 
     // PSTs
-    private static final int[] PAWN_PST = {
-        0,  0,  0,  0,  0,  0,  0,  0,
-        5, 10, 10,-20,-20, 10, 10,  5,
-        5, -5,-10,  0,  0,-10, -5,  5,
-        0,  0,  0, 20, 20,  0,  0,  0,
-        5,  5, 10, 25, 25, 10,  5,  5,
-        10, 10, 20, 30, 30, 20, 10, 10,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        0,  0,  0,  0,  0,  0,  0,  0
+    private static int[] PAWN_PST = {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        -6,  -4, -11, -12,  -3,  16,  13,  -6,
+        -5,  -5,   0,   0,   8,   5,   7,  -2,
+        -4,  -2,   2,  11,  11,   2,   3,  -5,
+        9,   9,   4,  10,  11,   8,  13,   7,
+        29,  30,  23,   9,  13,  24,  31,  25,
+        75,  83,  62,  60,  68,  54,  60,  74,
+        0,   0,   0,   0,   0,   0,   0,   0
     };
 
-    private static final int[] KNIGHT_PST = {
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50
+    private static int[] KNIGHT_PST = {
+        -58, -20, -30, -17, -11, -17, -19, -54,
+        -30, -28,  -7,   7,   9,   5, -18, -22,
+        -25,  -4,  12,  23,  26,  21,  11, -20,
+        -15,   5,  26,  25,  31,  25,  18, -10,
+        -11,  15,  30,  47,  35,  44,  19,   2,
+        -32,  13,  28,  38,  36,  39,  22, -16,
+        -45, -17,  14,  14,   6,   7, -15, -44,
+        -100, -53, -14, -33, -13, -53, -59,-100
     };
 
-    private static final int[] BISHOP_PST = {
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20
+    private static int[] BISHOP_PST = {
+        -24,  -1,  -4,  -4,  -5,  -5, -12, -17,
+        -3,  10,   6,   1,   9,   5,  23,  -9,
+        -5,   9,  12,   8,  11,  14,   7,  -2,
+        -4,   5,   8,  20,  16,  -1,   0,   0,
+        -3,   0,  12,  22,  19,  15,   1,   1,
+        -10,   4,   8,   9,   8,  14,  13,  -1,
+        -17,  -2,  -5, -14,   5,   9,   1, -35,
+        -26, -17, -26, -18, -12, -16, -11, -19
     };
 
-    private static final int[] ROOK_PST = {
-        0,  0,  0,  5,  5,  0,  0,  0,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        5, 10, 10, 10, 10, 10, 10,  5,
-        0,  0,  0,  0,  0,  0,  0,  0
+    private static int[] ROOK_PST = {
+        -4,   4,  11,  13,  13,  10, -13, -13,
+        -14,   0,   1,   7,   4,   5,  -2, -30,
+        -10,   0,   0,   2,   2,   0,  -1, -16,
+        -2,   5,   9,   6,   5,   0,   3,  -7,
+        7,   4,  14,   9,   9,  15,   2,   7,
+        12,  16,  13,  16,   7,  11,  14,   6,
+        21,  22,  26,  25,  18,  22,  17,  18,
+        20,  17,  19,  21,  22,  17,  15,  16
     };
 
-    private static final int[] QUEEN_PST = {
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-        0,  0,  5,  5,  5,  5,  0, -5,
-        -5,  0,  5,  5,  5,  5,  0, -5,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20
+    private static int[] QUEEN_PST = {
+        9,  -1,   7,  24,   9,  -1,  -3, -24,
+        -8,   0,  18,  14,  22,  17,  -4,  13,
+        0,   7,   4,   7,   7,  13,  22,  21,
+        -3,  -8,  -1,  -3,   3,  10,  20,  20,
+        -7, -15, -11,  -8,  11,  19,  29,  19,
+        -11, -11,  -8,  11,  30,  46,  48,  40,
+        -15, -28,   5,  18,  17,  39,  37,  40,
+        -10,  16,  19,  19,  43,  40,  35,  30
     };
 
-    private static final int[] KING_PST = {
-        20, 30, 10,  0,  0, 10, 30, 20,
-        20, 20,  0,  0,  0,  0, 20, 20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30
+    private static int[] KING_PST = {
+        3,  38,  25, -50,   3, -34,  36,  20,
+        13,  24,   3, -50, -48, -23,  18,  23,
+        2, -17, -32, -42, -40, -36, -12,  -1,
+        -22, -23, -43, -68, -63, -48, -23, -22,
+        -29, -21, -31, -68, -72, -52, -18, -29,
+        -5, -22, -38, -63, -61, -19,  -1, -14,
+        -29, -11, -33, -40, -40, -22, -16, -15,
+        -66, -37, -29, -44, -54, -20, -24,  -9
     };
 
-    private static final int[] KING_ENDGAME_PST = {
-        -50,-40,-30,-20,-20,-30,-40,-50,
-        -30,-20,-10,  0,  0,-10,-20,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-30,  0,  0,  0,  0,-30,-30,
-        -50,-30,-30,-30,-30,-30,-30,-50
+    private static int[] KING_ENDGAME_PST = {
+        -65, -34, -23, -17, -21, -14, -36, -52,
+        -29, -16,  -6,   5,   7,  -2, -13, -28,
+        -18,  -4,   7,   9,  11,   7,   2, -20,
+        -29,  -8,  13,  15,  16,  12,   1, -22,
+        -30,  11,  13,  18,  18,  20,  12, -30,
+        -5,   7,  11,  11,  13,  31,  25, -15,
+        -30,  -3,   7,  10,  10,  19,  -7, -11,
+        -86, -32, -22, -27, -30, -11, -16, -34
     };
 
     static {
@@ -301,7 +301,7 @@ public class TurquoiseBot extends Engine {
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.5;
+        this.version = 2.6;
     }
 
 
@@ -799,5 +799,27 @@ public class TurquoiseBot extends Engine {
         lastNodesPerSecond = (nodesSearched * 1000L) / elapsedMs;
         
         return overallBestMove;
+    }
+
+    public void applyParams(int[] p) {
+        PAWN   = p[0]; KNIGHT = p[1]; BISHOP = p[2]; ROOK = p[3]; QUEEN = p[4];
+        KNIGHT_MOB_MG = p[5];  KNIGHT_MOB_EG = p[6];
+        BISHOP_MOB_MG = p[7];  BISHOP_MOB_EG = p[8];
+        ROOK_MOB_MG   = p[9];  ROOK_MOB_EG   = p[10];
+        QUEEN_MOB_MG  = p[11]; QUEEN_MOB_EG  = p[12];
+        for (int i = 0; i < 8; i++) {
+            PASSED_PAWN_MG[i] = p[13 + i];
+            PASSED_PAWN_EG[i] = p[21 + i];
+        }
+        KING_PROXIMITY_WEIGHT    = p[29];
+        ISOLATED_PAWN_PENALTY_MG = p[30];
+        ISOLATED_PAWN_PENALTY_EG = p[31];
+        System.arraycopy(p,  32, PAWN_PST,        0, 64);
+        System.arraycopy(p,  96, KNIGHT_PST,      0, 64);
+        System.arraycopy(p, 160, BISHOP_PST,      0, 64);
+        System.arraycopy(p, 224, ROOK_PST,        0, 64);
+        System.arraycopy(p, 288, QUEEN_PST,       0, 64);
+        System.arraycopy(p, 352, KING_PST,        0, 64);
+        System.arraycopy(p, 416, KING_ENDGAME_PST,0, 64);
     }
 }
