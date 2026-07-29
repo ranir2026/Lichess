@@ -211,7 +211,7 @@ A classical chess engine written with Java. --RR
 
 ### Statistics
 - Total games: 1000 (500 pairs)
-- Score: 58.7% (587.0/1000)
+- Score: 70.8%
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +10.72
 - LOS ≈ 100.0%
 - Elo Change: **+61.1 ± 14.5**
