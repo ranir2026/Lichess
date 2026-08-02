@@ -1,4 +1,4 @@
-public class TurquoiseBot extends Engine {
+public class TexelBot extends Engine {
     String name;
     double version;
     String author;
@@ -205,12 +205,6 @@ public class TurquoiseBot extends Engine {
         }
     }
 
-    // king value used only for SEE's internal exchange simulation -- large enough that
-    // SEE never treats losing the king as an acceptable trade. Safe to include in
-    // evaluate()'s material sum too since both sides always have exactly one king, so
-    // it cancels out in the final (whiteScore - blackScore) difference.
-    private static final int KING_SEE_VALUE = 20000;
-
     private int getPieceValue(int type) {
         switch(type % 6) {
             case 0: return PAWN;
@@ -218,7 +212,6 @@ public class TurquoiseBot extends Engine {
             case 2: return BISHOP;
             case 3: return ROOK;
             case 4: return QUEEN;
-            case 5: return KING_SEE_VALUE;
             default: return 0;
         }
     }
@@ -234,87 +227,6 @@ public class TurquoiseBot extends Engine {
             
             default: return 0;
         }
-    }
-
-    // SEE (Static Exchange Evaluation): simulates the full capture sequence on a
-    // square -- both sides recapturing with their least valuable attacker each
-    // time -- and returns the net material result from the mover's perspective.
-    // Used to order/prune captures that lose material even after all recaptures,
-    // which plain MVV-LVA (based only on the first capture) can't detect.
-    private long attackersTo(int square, long occupancy) {
-        long attackers = 0L;
-        attackers |= AttackTables.pawnAttacks[Board.BLACK][square] & board.pieceBitboards[Board.WP];
-        attackers |= AttackTables.pawnAttacks[Board.WHITE][square] & board.pieceBitboards[Board.BP];
-        attackers |= AttackTables.knightAttacks[square] & (board.pieceBitboards[Board.WN] | board.pieceBitboards[Board.BN]);
-        attackers |= AttackTables.kingAttacks[square] & (board.pieceBitboards[Board.WK] | board.pieceBitboards[Board.BK]);
-
-        long bishopsQueens = board.pieceBitboards[Board.WB] | board.pieceBitboards[Board.BB]
-                           | board.pieceBitboards[Board.WQ] | board.pieceBitboards[Board.BQ];
-        attackers |= AttackTables.getBishopAttacks(square, occupancy) & bishopsQueens;
-
-        long rooksQueens = board.pieceBitboards[Board.WR] | board.pieceBitboards[Board.BR]
-                          | board.pieceBitboards[Board.WQ] | board.pieceBitboards[Board.BQ];
-        attackers |= AttackTables.getRookAttacks(square, occupancy) & rooksQueens;
-
-        return attackers & occupancy;
-    }
-
-    private int leastValuableAttackerSquare(long attackers, int side) {
-        int base = (side == Board.WHITE) ? 0 : 6;
-        for (int type = 0; type < 6; type++) {
-            long bb = board.pieceBitboards[base + type] & attackers;
-            if (bb != 0) return Long.numberOfTrailingZeros(bb);
-        }
-        return -1;
-    }
-
-    public int see(int move) {
-        int from = Move.getStart(move);
-        int to = Move.getEnd(move);
-        int side = board.turn;
-        boolean isEnPassant = Move.getFlags(move) == Move.EN_PASSANT;
-
-        long occupancy = board.allPieces;
-
-        int capturedType = isEnPassant ? ((side == Board.WHITE) ? Board.BP : Board.WP) : board.getPieceAt(to);
-        int[] gain = new int[32];
-        int d = 0;
-        gain[0] = (capturedType == -1) ? 0 : getPieceValue(capturedType);
-
-        int lastAttackerValue = getPieceValue(board.getPieceAt(from));
-
-        occupancy ^= (1L << from);
-        if (isEnPassant) {
-            int capSq = (side == Board.WHITE) ? to - 8 : to + 8;
-            occupancy ^= (1L << capSq);
-        }
-
-        long attackers = attackersTo(to, occupancy);
-        int sideToMove = 1 - side;
-
-        while (true) {
-            int sq = leastValuableAttackerSquare(attackers, sideToMove);
-            if (sq == -1) break;
-
-            d++;
-            gain[d] = lastAttackerValue - gain[d - 1];
-            // if even in the best case this recapture doesn't improve on what's already
-            // been established, the exchange is decided -- stop simulating further
-            if (Math.max(-gain[d - 1], gain[d]) < 0) break;
-
-            lastAttackerValue = getPieceValue(board.getPieceAt(sq));
-            occupancy ^= (1L << sq);
-            attackers = attackersTo(to, occupancy);
-            sideToMove = 1 - sideToMove;
-        }
-
-        // fold from the deepest simulated ply back up to gain[0] -- each side, in turn,
-        // picks whichever is better: stopping here (gain[i]) or continuing the
-        // exchange (-gain[i+1], the result one ply deeper from the opponent's view)
-        for (int i = d - 1; i >= 0; i--) {
-            gain[i] = -Math.max(-gain[i], gain[i + 1]);
-        }
-        return gain[0];
     }
 
     private int getIndex(long hash) {
@@ -382,14 +294,14 @@ public class TurquoiseBot extends Engine {
         return total;
     }
 
-    public TurquoiseBot(Board board) {
+    public TexelBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
         this.quietMoveStack = new int[128][MoveGenerator.MAX_MOVES];
 
-        this.name = "TurquoiseBot";
+        this.name = "TexelBot";
         this.author = "RR";
-        this.version = 2.7;
+        this.version = 2.6;
     }
 
 
@@ -709,7 +621,6 @@ public class TurquoiseBot extends Engine {
         if (ply >= 0 && ply < moveStack.length) moves = moveStack[ply];
         else moves = new int[MoveGenerator.MAX_MOVES];
         int count = MoveGenerator.generateLegalMoves(board, moves);
-        boolean inCheck = board.getCheckers() != 0;
 
         for (int i = 0; i < count; i++) {
             // if the move isn't a capture, we can disregard it
@@ -719,13 +630,6 @@ public class TurquoiseBot extends Engine {
             int fromSq2 = Move.getStart(mv);
             if (fromSq2 < 0 || fromSq2 >= 64) continue;
             if (board.boardArray[fromSq2] == -1) continue; // sanity: skip moves from empty squares
-
-            // skip captures that lose material even after all recaptures -- no point
-            // searching a line the opponent would never let us reach. Skip this pruning
-            // while in check though: the stand-pat eval above is invalid when in check
-            // (we might be getting mated), so every capture -- even a "losing" one --
-            // may be a necessary defensive try.
-            if (!inCheck && see(mv) < 0) continue;
 
             board.makeMove(mv);
             int score = -quiescenceSearch(-beta, -alpha, ply + 1);
@@ -755,13 +659,12 @@ public class TurquoiseBot extends Engine {
                 scores[i] = 1000000;
             } 
             else if (Move.isCapture(move)) { // capture
-                // SEE tells us the net material result of the full capture sequence on
-                // this square (all recaptures included), not just the first exchange --
-                // so a capture that wins the piece back can still be sorted correctly
-                // even if the immediate trade looks even or bad by MVV-LVA alone.
-                int seeScore = see(move);
-                scores[i] = (seeScore >= 0) ? (100000 + seeScore) : seeScore;
-            }
+                int victim = board.getPieceAt(Move.getEnd(move));
+                int attacker = board.getPieceAt(Move.getStart(move));
+
+                scores[i] = 10 * getPieceValue(victim) - getPieceValue(attacker);
+                scores[i] += 100000;
+            } 
             else if (Move.getFlags(move) == Move.SHORT_CASTLE || Move.getFlags(move) == Move.LONG_CASTLE) { // prefer castling
                 scores[i] = 110000;
             }

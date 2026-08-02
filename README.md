@@ -215,3 +215,25 @@ A classical chess engine written with Java. --RR
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +10.72
 - LOS ≈ 100.0%
 - Elo Change: **+61.1 ± 14.5**
+
+---
+
+## SEEBot (TurquoiseBot v2.7) (8/1/2026)
+
+### New Additions
+- Static-Exchange Evaluation
+
+### Match Suite (vs TexelBot v2.6)
+
+| Result | Count |
+|---|---|
+| Wins | 436 |
+| Losses | 142 |
+| Draws | 422 |
+
+### Statistics
+- Total games: 1000
+- Score: 75.4%
+- SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05)
+- LOS ≈ 100.0%
+- Elo Change: **++105.3 ± 15.4**

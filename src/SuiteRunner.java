@@ -40,13 +40,13 @@ public class SuiteRunner {
 
     // SPRT: sequential test that stops as soon as it can accept H0 or H1.
     // H0 "B is not an improvement" (elo <= ELO0)  vs  H1 "B is a real gain" (elo >= ELO1).
-    private static final boolean SPRT_ENABLED = true;
+    private static final boolean SPRT_ENABLED = false;
     // If true, the run stops the moment SPRT reaches a verdict -- fast, but the final Elo
     // estimate is only as precise as whatever sample size the bound happened to cross at.
     // If false, SPRT LLR/verdict are still computed and reported every pair, but the run
     // always plays out all NUM_PAIRS -- use this when you want a precise Elo MAGNITUDE
     // (tighter confidence interval) rather than just a fast yes/no on direction.
-    private static final boolean SPRT_STOP_EARLY = false;
+    private static final boolean SPRT_STOP_EARLY = true;
     private static final double  SPRT_ELO0    = 0.0;   // null hypothesis bound
     private static final double  SPRT_ELO1    = 10.0;  // alternative hypothesis bound
     private static final double  SPRT_ALPHA   = 0.05;  // false-positive rate
@@ -55,8 +55,8 @@ public class SuiteRunner {
     public static String ENGINE_A_NAME = "A";
     public static String ENGINE_B_NAME = "B";
 
-    private static Engine makeEngineA(Board b) { return new PVSBot(b); }
-    private static Engine makeEngineB(Board b) { return new TurquoiseBot(b); } // <<< swap here
+    private static Engine makeEngineA(Board b) { return new TexelBot(b); }
+    private static Engine makeEngineB(Board b) { return new TurquoiseBot(b); }
 
     // ------------------------------------------------------------------ main
     public static void main(String[] args) {
@@ -99,7 +99,6 @@ public class SuiteRunner {
             results.write("game,pair,openingIndex,aColor,outcome,reason,plies,bScore");
             results.newLine();
 
-            pairsLoop:
             for (int p = 0; p < NUM_PAIRS; p++) {
                 int[] opening = book.get(p % book.size());
                 double pairScore = 0.0;
@@ -181,7 +180,7 @@ public class SuiteRunner {
                 if (SPRT_ENABLED && pairScores.size() >= 2) {
                     if (llr >= upperBound && sprtVerdict == null) sprtVerdict = "H1 ACCEPTED: B is stronger (>= " + SPRT_ELO1 + " Elo).";
                     if (llr <= lowerBound && sprtVerdict == null) sprtVerdict = "H0 ACCEPTED: B is not an improvement (<= " + SPRT_ELO0 + " Elo).";
-                    if (sprtVerdict != null && SPRT_STOP_EARLY) break pairsLoop;
+                    if (sprtVerdict != null && SPRT_STOP_EARLY) break;
                 }
             }
 

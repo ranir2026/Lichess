@@ -1,4 +1,4 @@
-public class TurquoiseBot extends Engine {
+public class SEEBot extends Engine {
     String name;
     double version;
     String author;
@@ -382,12 +382,12 @@ public class TurquoiseBot extends Engine {
         return total;
     }
 
-    public TurquoiseBot(Board board) {
+    public SEEBot(Board board) {
         this.board = board;
         this.moveStack = new int[128][MoveGenerator.MAX_MOVES]; // allocate per-ply move buffers (depth headroom)
         this.quietMoveStack = new int[128][MoveGenerator.MAX_MOVES];
 
-        this.name = "TurquoiseBot";
+        this.name = "SEEBot";
         this.author = "RR";
         this.version = 2.7;
     }
