@@ -211,7 +211,7 @@ A classical chess engine written with Java. --RR
 
 ### Statistics
 - Total games: 1000 (500 pairs)
-- Score: 70.8%
+- Score: 58.7% (587/1000)
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +10.72
 - LOS ≈ 100.0%
 - Elo Change: **+61.1 ± 14.5**
@@ -233,10 +233,10 @@ A classical chess engine written with Java. --RR
 
 ### Statistics
 - Total games: 1000
-- Score: 75.4%
+- Score: 64.7% (647/1000)
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05)
 - LOS ≈ 100.0%
-- Elo Change: **++105.3 ± 15.4**
+- Elo Change: **+105.3 ± 15.4**
 
 ---
 
@@ -291,4 +291,4 @@ A classical chess engine written with Java. --RR
 | C2: C1 + full re-tune of all constants | 3500 | 274 / 252 / 474 | 51.1% | +7.6 [-6.3, +21.6] |
 | C2 | 860 | 255 / 267 / 478 | 49.4% | -4.2 [-18.1, +9.7] |
 
-- The score % listed above for v2.6 (70.8%) and v2.7 (75.4%) does not match (W + D/2) / N. Their W/L/D give 58.7% and 64.7%. 75.4% is W / (W + L).
+- Corrected on 10/24/2026: the v2.6 and v2.7 scores above were listed as 70.8% and 75.4%, which didn't match their W/L/D. They now show (W + D/2) / N. Their Elo changes were already consistent with the corrected scores.
