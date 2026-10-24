@@ -27,8 +27,12 @@ import java.io.*;
 public class SuiteRunner {
 
     // ------------------------------------------------------------------ config
-    private static final int    NUM_PAIRS    = 500;   // total games = NUM_PAIRS * 2 (each opening played both colors)
-    private static final int    MOVE_TIME_MS = 3500;  // ms per move per engine
+    // NUM_PAIRS / MOVE_TIME_MS can be overridden per run with -Dsuite.pairs=N / -Dsuite.moveTimeMs=N
+    // (the defaults are the standard settings used for the README results)
+    private static final int    NUM_PAIRS    = Integer.getInteger("suite.pairs", 500);   // total games = NUM_PAIRS * 2 (each opening played both colors)
+    // passed to getBestMove() as the time left on the clock: the engines think MOVE_TIME_MS/40 - 10 ms
+    // per move (with a 1 ms system timer: 3500 -> ~80 ms, 1000 -> ~17 ms, 860 -> ~15 ms, 500 -> ~2 ms)
+    private static final int    MOVE_TIME_MS = Integer.getInteger("suite.moveTimeMs", 3500);
     private static final int    MOVE_LIMIT   = 400;   // half-move ceiling -> draw
     private static final String LOG_PATH     = "suite_log.csv";      // per-move efficiency stats (unchanged schema)
     private static final String RESULTS_PATH = "suite_results.csv";  // per-game outcomes (new)
@@ -40,13 +44,13 @@ public class SuiteRunner {
 
     // SPRT: sequential test that stops as soon as it can accept H0 or H1.
     // H0 "B is not an improvement" (elo <= ELO0)  vs  H1 "B is a real gain" (elo >= ELO1).
-    private static final boolean SPRT_ENABLED = false;
+    private static final boolean SPRT_ENABLED = true;
     // If true, the run stops the moment SPRT reaches a verdict -- fast, but the final Elo
     // estimate is only as precise as whatever sample size the bound happened to cross at.
     // If false, SPRT LLR/verdict are still computed and reported every pair, but the run
     // always plays out all NUM_PAIRS -- use this when you want a precise Elo MAGNITUDE
     // (tighter confidence interval) rather than just a fast yes/no on direction.
-    private static final boolean SPRT_STOP_EARLY = true;
+    private static final boolean SPRT_STOP_EARLY = false;
     private static final double  SPRT_ELO0    = 0.0;   // null hypothesis bound
     private static final double  SPRT_ELO1    = 10.0;  // alternative hypothesis bound
     private static final double  SPRT_ALPHA   = 0.05;  // false-positive rate
@@ -55,8 +59,39 @@ public class SuiteRunner {
     public static String ENGINE_A_NAME = "A";
     public static String ENGINE_B_NAME = "B";
 
-    private static Engine makeEngineA(Board b) { return new TexelBot(b); }
-    private static Engine makeEngineB(Board b) { return new TurquoiseBot(b); }
+    // -Dsuite.engineB=<class> swaps engine B (default KingSafetyBot), e.g. SEEBot for an A/A control run
+    private static final String ENGINE_B_CLASS = System.getProperty("suite.engineB", "KingSafetyBot");
+
+    private static Engine makeEngineA(Board b) { return new SEEBot(b); }
+    private static Engine makeEngineB(Board b) {
+        if (ENGINE_B_CLASS.equals("KingSafetyBot")) return new KingSafetyBot(b);
+        try {
+            return (Engine) Class.forName(ENGINE_B_CLASS).getConstructor(Board.class).newInstance(b);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("cannot create engine B: " + ENGINE_B_CLASS, e);
+        }
+    }
+
+    // optional -Dsuite.paramsB=<file>: a full KingSafetyBot.applyParams vector (one int per line)
+    // loaded into engine B before the first game, so a re-tuned candidate can be tested without
+    // its own class. The constants are static, so applying them once covers every game.
+    private static final String PARAMS_B_PATH = System.getProperty("suite.paramsB");
+
+    private static void loadParamsB() throws IOException {
+        List<Integer> values = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(PARAMS_B_PATH))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (!line.trim().isEmpty()) values.add(Integer.parseInt(line.trim()));
+            }
+        }
+        if (values.size() != KingSafetyBot.NUM_PARAMS) {
+            throw new IOException(PARAMS_B_PATH + ": expected " + KingSafetyBot.NUM_PARAMS + " values, got " + values.size());
+        }
+        int[] p = new int[values.size()];
+        for (int i = 0; i < p.length; i++) p[i] = values.get(i);
+        new KingSafetyBot(new Board()).applyParams(p);
+    }
 
     // ------------------------------------------------------------------ main
     public static void main(String[] args) {
@@ -70,6 +105,16 @@ public class SuiteRunner {
         // pentanomial pair scores (from B's perspective): each completed pair contributes a
         // value in {0, 0.5, 1, 1.5, 2}. Kept in a list so we can compute variance for CI + SPRT.
         List<Double> pairScores = new ArrayList<>();
+
+        if (PARAMS_B_PATH != null) {
+            try {
+                loadParamsB();
+                System.out.println("Engine B params loaded from " + PARAMS_B_PATH);
+            } catch (IOException | NumberFormatException e) {
+                System.err.println("Could not load engine B params: " + e.getMessage());
+                return;
+            }
+        }
 
         // build the opening book once up front
         System.out.println("Building opening book (" + NUM_OPENINGS + " openings, " + OPENING_PLIES + " plies each)...");
@@ -96,7 +141,7 @@ public class SuiteRunner {
 
             log.write("game,halfMove,engineName,side,depthReached,nodesSearched,elapsedMs,nodesPerSecond");
             log.newLine();
-            results.write("game,pair,openingIndex,aColor,outcome,reason,plies,bScore");
+            results.write("game,pair,openingIndex,aColor,outcome,reason,plies,bScore,finalFen");
             results.newLine();
 
             for (int p = 0; p < NUM_PAIRS; p++) {
@@ -124,8 +169,10 @@ public class SuiteRunner {
                     final int openingLen = opening.length;
 
                     MatchResult mr = new MatchResult();
-                    Future<?> future = executor.submit(() ->
-                            playGame(boardA, boardB, engineA, engineB, aWht, gameNum, openingLen, log, mr));
+                    Future<?> future = executor.submit(() -> {
+                            playGame(boardA, boardB, engineA, engineB, aWht, gameNum, openingLen, log, mr);
+                            mr.finalFen = TestPositions.toFEN(boardA); // final position, for outcome analysis
+                    });
 
                     try {
                         future.get(4, TimeUnit.MINUTES);
@@ -159,7 +206,7 @@ public class SuiteRunner {
                     if (mr.bMaxDepth > bMaxDepth) bMaxDepth = mr.bMaxDepth;
 
                     writeResultRow(results, g, p, p % book.size(), aIsWhite ? "white" : "black",
-                            mr.outcome, mr.reason, mr.plies, bScore);
+                            mr.outcome, mr.reason, mr.plies, bScore, mr.finalFen);
 
                     try { log.flush(); results.flush(); } catch (IOException ignored) {}
                 }
@@ -272,12 +319,13 @@ public class SuiteRunner {
 
     private static class MatchResult {
         String outcome = "DRAW";   // "A", "B", or "DRAW"
-        String reason  = "NONE";   // CHECKMATE / STALEMATE / FIFTY / REPETITION / LIMIT / TIMEOUT / ERROR
+        String reason  = "NONE";   // CHECKMATE / STALEMATE / FIFTY / REPETITION / LIMIT / TIMEOUT / ERROR / ILLEGAL
         int    plies   = 0;        // engine-played plies (excludes the book opening)
         long aTotalNodes = 0, bTotalNodes = 0;
         long aTotalMs    = 0, bTotalMs    = 0;
         int  aMoves = 0,      bMoves = 0;
         int  aMaxDepth = 0,   bMaxDepth = 0;
+        volatile String finalFen = ""; // written by the game thread, read by the main thread
     }
 
     private static void playGame(Board boardA,
@@ -323,6 +371,15 @@ public class SuiteRunner {
                 return;
             }
 
+            // never trust the engine's move blindly: an illegal move loses the game on the spot
+            if (!isLegalMove(ownBoard, move)) {
+                result.outcome = isATurn ? "B" : "A";
+                result.reason  = "ILLEGAL";
+                result.plies   = enginePlies;
+                System.err.println("\nGame " + (gameNum + 1) + ": " + activeName + " played illegal move " + move);
+                return;
+            }
+
             logMoveStats(log, gameNum, halfMoves, activeName,
                     isWhiteTurn ? "white" : "black",
                     active.lastDepthReached, active.lastNodesSearched,
@@ -354,6 +411,15 @@ public class SuiteRunner {
         result.plies = enginePlies;
     }
 
+    private static boolean isLegalMove(Board b, int move) {
+        int[] moves = new int[MoveGenerator.MAX_MOVES];
+        int count = MoveGenerator.generateLegalMoves(b, moves);
+        for (int i = 0; i < count; i++) {
+            if (moves[i] == move) return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------- reporting
 
     private static void logMoveStats(BufferedWriter log,
@@ -370,10 +436,11 @@ public class SuiteRunner {
     }
 
     private static void writeResultRow(BufferedWriter results, int game, int pair, int openingIndex,
-                                       String aColor, String outcome, String reason, int plies, double bScore) {
+                                       String aColor, String outcome, String reason, int plies, double bScore,
+                                       String finalFen) {
         try {
             results.write(game + "," + pair + "," + openingIndex + "," + aColor + ","
-                    + outcome + "," + reason + "," + plies + "," + bScore);
+                    + outcome + "," + reason + "," + plies + "," + bScore + "," + finalFen);
             results.newLine();
         } catch (IOException e) {
             System.err.println("Result write failed: " + e.getMessage());

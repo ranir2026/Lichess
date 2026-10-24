@@ -237,3 +237,58 @@ A classical chess engine written with Java. --RR
 - SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05)
 - LOS ≈ 100.0%
 - Elo Change: **++105.3 ± 15.4**
+
+---
+
+## KingSafetyBot (TurquoiseBot v2.8) (10/24/2026)
+
+### New Additions
+- King safety evaluation (search, move generation and all other evaluation terms are unchanged from SEEBot v2.7)
+  - Pawn shield: holes and pushed shield pawns in front of a castled (wing) king
+  - Open and half-open files next to the king
+  - King-zone attackers: every knight/bishop/rook/queen attacking the king zone is counted once, weighted, and fed through a nonlinear (quadratic, capped) danger table. Needs at least 2 attackers, and counts much less without a queen
+  - The whole penalty scales with the opponent's remaining attacking material, so it is 0 in pawn endgames
+  - Pawn-storm term (Texel-tuned to 0, kept for future tuning)
+- Only the 15 new king-safety constants were Texel-tuned (Zurichess quiet-labeled set, 1.43M positions, 80/20 train/validation split). Every other constant is SEEBot's.
+- New tests: `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `SpeedBench`
+
+### Match Suite (vs SEEBot v2.7)
+
+| Result | Count |
+|---|---|
+| Wins | 259 |
+| Losses | 216 |
+| Draws | 525 |
+
+### Statistics
+- Total games: 1000 (500 pairs), MOVE_TIME_MS = 3500 (~79 ms/move actually used), on AC power
+- Score: 52.15% (521.5/1000)
+- SPRT: H0 elo<=0.0 vs H1 elo>=10.0 (α=0.05, β=0.05) -- LLR +2.12, verdict: inconclusive (no bound reached in 500 pairs)
+- LOS ≈ 97.6%
+- Elo Change: **+14.9 ± 13.5** (95% CI [+1.5, +28.4])
+
+### Short Time Control Check (MOVE_TIME_MS = 860, ~12 ms/move actually used)
+
+| Result | Count |
+|---|---|
+| Wins | 297 |
+| Losses | 231 |
+| Draws | 472 |
+
+- Score: 53.3% (533/1000), LOS ≈ 99.8%
+- SPRT: LLR +3.41, above the H1 bound (first crossed at pair 326). SuiteRunner prints "H0 ACCEPTED at pair 2" for this run. That is a bug in its SPRT, which locks in a verdict when the first two pairs score the same (near-zero variance). The final LLR is the number to trust.
+- Elo Change: **+23.0 ± 14.3** (95% CI [+8.7, +37.3])
+
+### Notes
+- Where the gain comes from: KingSafetyBot delivers more middlegame mates (42 vs 18 at 3500, 73 vs 28 at 860) and more wins under 60 plies (47 vs 15, 61 vs 15). Endgame mates are about even (217 vs 198, 224 vs 203). Every decisive game was a checkmate. There were no illegal moves, crashes, time forfeits or move-limit games.
+- Speed: -3.5% nodes/second on `SpeedBench` (20 positions, 1 s/move). In the suite games, -0.8% (3500) and -2.7% (860).
+- v2.8 is the third king-safety candidate. The first two used a game-phase taper instead of the attacker-material taper and did not pass. They ran mostly on battery power, where this laptop searches ~2.5x slower, so they are not exactly comparable:
+
+| Candidate | MOVE_TIME_MS | W / L / D | Score | Elo (95% CI) |
+|---|---|---|---|---|
+| C1: phase taper, KS-only tuning | 3500 | 244 / 257 / 499 | 49.35% | -4.5 [-18.2, +9.2] |
+| C1 | 860 | 298 / 238 / 464 | 53.0% | +20.9 [+6.4, +35.4] |
+| C2: C1 + full re-tune of all constants | 3500 | 274 / 252 / 474 | 51.1% | +7.6 [-6.3, +21.6] |
+| C2 | 860 | 255 / 267 / 478 | 49.4% | -4.2 [-18.1, +9.7] |
+
+- The score % listed above for v2.6 (70.8%) and v2.7 (75.4%) does not match (W + D/2) / N. Their W/L/D give 58.7% and 64.7%. 75.4% is W / (W + L).
