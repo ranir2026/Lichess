@@ -55,6 +55,10 @@ public class SuiteRunner {
     private static final double  SPRT_ELO1    = 10.0;  // alternative hypothesis bound
     private static final double  SPRT_ALPHA   = 0.05;  // false-positive rate
     private static final double  SPRT_BETA    = 0.05;  // false-negative rate
+    // No LLR is computed (and no verdict can latch) before this many pairs. With only a handful of
+    // pairs the sample variance is meaningless: two identical pairs give var ~ 0, which blows the LLR
+    // up and used to lock in a bogus "H0 ACCEPTED at pair 2" verdict.
+    private static final int     SPRT_MIN_PAIRS = 20;
 
     public static String ENGINE_A_NAME = "A";
     public static String ENGINE_B_NAME = "B";
@@ -62,7 +66,16 @@ public class SuiteRunner {
     // -Dsuite.engineB=<class> swaps engine B (default KingSafetyBot), e.g. SEEBot for an A/A control run
     private static final String ENGINE_B_CLASS = System.getProperty("suite.engineB", "KingSafetyBot");
 
-    private static Engine makeEngineA(Board b) { return new SEEBot(b); }
+    // -Dsuite.engineA=<class> swaps engine A (default SEEBot, the frozen v2.7 baseline)
+    private static final String ENGINE_A_CLASS = System.getProperty("suite.engineA", "SEEBot");
+
+    private static Engine makeEngineA(Board b) {
+        try {
+            return (Engine) Class.forName(ENGINE_A_CLASS).getConstructor(Board.class).newInstance(b);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("cannot create engine A: " + ENGINE_A_CLASS, e);
+        }
+    }
     private static Engine makeEngineB(Board b) {
         if (ENGINE_B_CLASS.equals("KingSafetyBot")) return new KingSafetyBot(b);
         try {
@@ -134,7 +147,7 @@ public class SuiteRunner {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
-        String sprtVerdict = null; // set if SPRT stops early
+        String sprtVerdict = null; // set the first time the LLR crosses a bound (after SPRT_MIN_PAIRS)
 
         try (BufferedWriter log = new BufferedWriter(new FileWriter(LOG_PATH));
              BufferedWriter results = new BufferedWriter(new FileWriter(RESULTS_PATH))) {
@@ -224,9 +237,9 @@ public class SuiteRunner {
                     p + 1, NUM_PAIRS, ENGINE_A_NAME, aWins, ENGINE_B_NAME, bWins, draws,
                     SPRT_ENABLED ? String.format("  LLR: %+.2f (%.2f,%.2f)", sprtNote, lowerBound, upperBound) : ""));
 
-                if (SPRT_ENABLED && pairScores.size() >= 2) {
-                    if (llr >= upperBound && sprtVerdict == null) sprtVerdict = "H1 ACCEPTED: B is stronger (>= " + SPRT_ELO1 + " Elo).";
-                    if (llr <= lowerBound && sprtVerdict == null) sprtVerdict = "H0 ACCEPTED: B is not an improvement (<= " + SPRT_ELO0 + " Elo).";
+                if (SPRT_ENABLED && pairScores.size() >= SPRT_MIN_PAIRS) {
+                    if (llr >= upperBound && sprtVerdict == null) sprtVerdict = "H1 ACCEPTED: B is stronger (>= " + SPRT_ELO1 + " Elo), first crossed at pair " + (p + 1) + ".";
+                    if (llr <= lowerBound && sprtVerdict == null) sprtVerdict = "H0 ACCEPTED: B is not an improvement (<= " + SPRT_ELO0 + " Elo), first crossed at pair " + (p + 1) + ".";
                     if (sprtVerdict != null && SPRT_STOP_EARLY) break;
                 }
             }
@@ -502,6 +515,10 @@ public class SuiteRunner {
                 double upperBound = Math.log((1.0 - SPRT_BETA) / SPRT_ALPHA);
                 System.out.printf("SPRT:    LLR %+.2f  in (%.2f, %.2f)%n", llr, lowerBound, upperBound);
                 System.out.println("Verdict: " + (sprtVerdict != null ? sprtVerdict : "INCONCLUSIVE (ran out of games before a bound was reached)."));
+                if (!SPRT_STOP_EARLY) {
+                    System.out.println("Note:    the run was played to completion (SPRT_STOP_EARLY = false), so quote the FINAL LLR above;");
+                    System.out.println("         a first-crossing verdict is optimistic because the bounds were checked after every pair.");
+                }
             }
         }
 
@@ -559,7 +576,7 @@ public class SuiteRunner {
      */
     private static double computeSprtLLR(List<Double> pairScores) {
         int n = pairScores.size();
-        if (n < 2) return 0.0;
+        if (n < SPRT_MIN_PAIRS) return 0.0;
 
         double sum = 0.0;
         for (double x : pairScores) sum += x;
