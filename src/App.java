@@ -19,7 +19,7 @@ public class App {
 
         // separate lightweight instance just for evaluate() -- reusing the search engine
         // here would mean reallocating its 1M-entry transposition table on every update
-        private PVSBot evalEngine;
+        private KingSafetyBot evalEngine;
         private JLabel evalLabel;
 
         // drag state
@@ -32,7 +32,7 @@ public class App {
 
         public BoardPanel(Board board) {
             this.board = board;
-            this.evalEngine = new PVSBot(board);
+            this.evalEngine = new KingSafetyBot(board);
             try {
                 spriteSheet = ImageIO.read(new File("lib/pieces.png"));
             } catch (IOException e) {
@@ -203,7 +203,7 @@ public class App {
 
                             if (board != null) {
                                 isBotThinking = true;
-                                Engine engine = new PVSBot(board);
+                                Engine engine = new KingSafetyBot(board);
                                 int botMove = engine.getBestMove(10000, 0);
                                 if (botMove != -1) {
                                     board.makeMove(botMove);
