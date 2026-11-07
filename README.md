@@ -38,7 +38,7 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 
 ## Versions and naming
 
-The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). The source tree keeps only the current version (KingSafetyBot) and its baseline (SEEBot) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
+The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). `TurquoiseBot.java` is always the most advanced engine: currently an exact copy of KingSafetyBot (v2.8), and the file where the next version is developed. Besides it, the source tree keeps only the latest frozen version (KingSafetyBot) and its baseline (SEEBot) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
 
 | Version | Class | Date | Headline change |
 |---|---|---|---|
