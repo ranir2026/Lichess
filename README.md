@@ -34,7 +34,7 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 | Search | Iterative deepening, alpha-beta, principal variation search (PVS), transposition table, null-move pruning, late move reductions (LMR), aspiration windows, static-exchange evaluation (SEE) |
 | Move ordering | Hash move, killer moves, history heuristic, counter-move heuristic, SEE |
 | Evaluation | Tapered (midgame/endgame) piece-square tables including a separate king endgame table, tapered mobility, isolated pawns, passed pawns with king-proximity scaling, king safety (pawn shield, open files, king-zone attackers, attacker-material scaling). Constants are Texel-tuned |
-| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), `Suite.py` (efficiency plots), a Swing GUI (`App`) |
+| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), a Swing GUI (`App`) |
 
 ## Versions and naming
 
@@ -84,8 +84,6 @@ java -cp bin TexelTuner --data positions.txt --ks-only --params-out tuned.txt
 # GUI (run from the repository root: it loads lib/pieces.png)
 java -cp bin App
 ```
-
-`Suite.py` (pandas, matplotlib, seaborn, scipy) plots the per-move efficiency log written by `SuiteRunner`.
 
 **Playing on Lichess.** The engine speaks UCI through a front end that runs under [lichess-bot](https://github.com/lichess-bot-devs/lichess-bot). The UCI front end and the lichess-bot configuration, which hold an API token, are local only and not part of this repository.
 

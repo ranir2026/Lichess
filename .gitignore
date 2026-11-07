@@ -1,4 +1,4 @@
-# compiled engine (javac / VS Code output); bin/run_engine.bat stays tracked
+# compiled engine (javac / VS Code output)
 bin/*.class
 bin/precomputed_attacks.bin
 
@@ -9,3 +9,8 @@ lichess-bot-master/
 suite_log.csv
 suite_results.csv
 engine_crash.log
+
+# local-only: UCI front end + its launcher (used by lichess-bot) and editor settings
+src/UciInterface.java
+bin/run_engine.bat
+.vscode/
