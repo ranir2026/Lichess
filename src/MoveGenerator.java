@@ -65,7 +65,14 @@ public class MoveGenerator {
         if (checkers != 0) {
             int checkerSq = Long.numberOfTrailingZeros(checkers);
             long checkRay = getRay(kingSq, checkerSq); // Squares between king and checker
-            if (((1L << to) & (checkers | checkRay)) == 0) return false;
+            boolean resolves = ((1L << to) & (checkers | checkRay)) != 0;
+            // en passant can also resolve the check by capturing the checking pawn, which is NOT on
+            // the destination square (it sits one rank behind it)
+            if (!resolves && flags == Move.EN_PASSANT) {
+                int epCapturedSq = (side == Board.WHITE) ? to - 8 : to + 8;
+                resolves = (checkers & (1L << epCapturedSq)) != 0;
+            }
+            if (!resolves) return false;
         }
 
         // case 4: pinned piece
