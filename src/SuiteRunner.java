@@ -40,7 +40,7 @@ public class SuiteRunner {
     // opening book: quiet random openings keep material equal so games stay balanced but diverse
     private static final int    OPENING_PLIES = 8;          // depth of the random opening (must be even -> white to move after)
     private static final int    NUM_OPENINGS  = 200;        // distinct openings to cycle through
-    private static final long   BOOK_SEED     = 20260726L;  // fixed seed -> reproducible book across runs
+    private static final long   BOOK_SEED     = Long.getLong("suite.bookSeed", 20260726L);  // fixed seed -> reproducible book; -Dsuite.bookSeed=N picks another book (e.g. for tuning)
 
     // SPRT: sequential test that stops as soon as it can accept H0 or H1.
     // H0 "B is not an improvement" (elo <= ELO0)  vs  H1 "B is a real gain" (elo >= ELO1).
@@ -130,7 +130,7 @@ public class SuiteRunner {
         }
 
         // build the opening book once up front
-        System.out.println("Building opening book (" + NUM_OPENINGS + " openings, " + OPENING_PLIES + " plies each)...");
+        System.out.println("Building opening book (" + NUM_OPENINGS + " openings, " + OPENING_PLIES + " plies each, seed " + BOOK_SEED + ")...");
         List<int[]> book = buildOpeningBook(NUM_OPENINGS, OPENING_PLIES, BOOK_SEED);
         System.out.println("Book ready: " + book.size() + " unique openings.\n");
 

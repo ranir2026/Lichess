@@ -13,6 +13,16 @@ public class TurquoiseBot extends Engine {
     private static final int DRAW_SCORE = 0;
     private static final int REPETITION_DRAW_SCORE = -2;
 
+    // Reverse futility pruning (static null-move pruning): at a non-PV node near the leaves, if the
+    // static eval beats beta by RFP_MARGIN per remaining ply, assume the node fails high and return.
+    // Settable per run with -Drfp.margin=N and -Drfp.maxDepth=N. -Drfp.margin=100000 switches RFP off:
+    // |beta| < RFP_MATE_BOUND and |eval| < RFP_MATE_BOUND, so eval - 100000 * depth can never reach beta.
+    static int RFP_MARGIN = Integer.getInteger("rfp.margin", 90);
+    static int RFP_MAX_DEPTH = Integer.getInteger("rfp.maxDepth", 6);
+    // window bounds at or past this are mate scores (+-(MATE_SCORE + depth)). The +-50 aspiration
+    // window can shift them slightly below MATE_SCORE, so the bound sits well below it.
+    private static final int RFP_MATE_BOUND = MATE_SCORE / 2;
+
     private static int KNIGHT_MOB_MG = 2;
     private static int KNIGHT_MOB_EG = -2;
     private static int BISHOP_MOB_MG = 6;
@@ -711,6 +721,9 @@ public class TurquoiseBot extends Engine {
     }
 
     public int search(int depth, int alpha, int beta, int ply, boolean allowNMP) {
+        // PV-ness is judged on the window as passed in, before the TT probe can narrow it. Use != 1:
+        // the root window (-Integer.MAX_VALUE, Integer.MAX_VALUE) overflows beta - alpha to -2.
+        boolean pvNode = beta - alpha != 1;
         // alpha = lower bound
         // beta = higher bound
         long hash = board.getCurrentHash();
@@ -753,12 +766,23 @@ public class TurquoiseBot extends Engine {
             return DRAW_SCORE;
         }
 
+        // static eval of this node, computed once and shared by RFP and null-move pruning. Both
+        // skip nodes in check, where a static eval means nothing, so it isn't computed there.
+        boolean nodeInCheck = board.getCheckers() != 0;
+        int staticEval = nodeInCheck ? 0 : evaluate();
+
+        // reverse futility pruning. search() is fail-hard (cutoffs return beta), so this does too.
+        if (!pvNode && ply > 0 && !nodeInCheck && depth <= RFP_MAX_DEPTH
+                && Math.abs(beta) < RFP_MATE_BOUND
+                && staticEval - RFP_MARGIN * depth >= beta) {
+            return beta;
+        }
+
         int side = board.turn;
         long nonPawnPieces = (side == Board.WHITE)
             ? (board.pieceBitboards[Board.WN] | board.pieceBitboards[Board.WB] | board.pieceBitboards[Board.WR] | board.pieceBitboards[Board.WQ])
             : (board.pieceBitboards[Board.BN] | board.pieceBitboards[Board.BB] | board.pieceBitboards[Board.BR] | board.pieceBitboards[Board.BQ]);
         if (allowNMP && depth >= 3 && board.getCheckers() == 0 && Long.bitCount(nonPawnPieces) > 2) {
-            int staticEval = evaluate();
             if (staticEval >= beta) {
                 int R = (depth >= 8) ? depth/6 + 1: depth/4 + 2;
                 
