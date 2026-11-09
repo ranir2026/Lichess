@@ -7,7 +7,7 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 **Author:** Rahul Rani   
 **Language:** Java (compiles with `--release 8`)   
 **Search:** single-threaded  
-**Strength:** about +800 Elo over the first version in self-play (a rough chained estimate, see [Results](#results))
+**Strength:** about +875 Elo over the first version in self-play (a rough chained estimate, see [Results](#results))
 
 ![Cumulative Elo vs IterativeDeepeningBot](docs/elo_progression.svg)
 
@@ -20,9 +20,10 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 5. [Results](#results)
 6. [Version details](#version-details)
 7. [Testing history and selection effects (v2.8)](#testing-history-and-selection-effects-v28)
-8. [Known limitations](#known-limitations)
-9. [Glossary and references](#glossary-and-references)
-10. [License](#license)
+8. [Testing history and selection effects (v2.9)](#testing-history-and-selection-effects-v29)
+9. [Known limitations](#known-limitations)
+10. [Glossary and references](#glossary-and-references)
+11. [License](#license)
 
 ---
 
@@ -31,14 +32,14 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 | Area | What is implemented |
 |---|---|
 | Board and move generation | Bitboard board representation, precomputed attack tables, legal move generation, incremental Zobrist hashing, threefold-repetition and fifty-move detection |
-| Search | Iterative deepening, alpha-beta, principal variation search (PVS), transposition table, null-move pruning, late move reductions (LMR), aspiration windows, static-exchange evaluation (SEE) |
+| Search | Iterative deepening, alpha-beta, principal variation search (PVS), transposition table, null-move pruning, reverse futility pruning, late move reductions (LMR), aspiration windows, static-exchange evaluation (SEE) |
 | Move ordering | Hash move, killer moves, history heuristic, counter-move heuristic, SEE |
 | Evaluation | Tapered (midgame/endgame) piece-square tables including a separate king endgame table, tapered mobility, isolated pawns, passed pawns with king-proximity scaling, king safety (pawn shield, open files, king-zone attackers, attacker-material scaling). Constants are Texel-tuned |
-| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), a Swing GUI (`App`) |
+| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `RfpEquivalenceTest`, `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), a Swing GUI (`App`) |
 
 ## Versions and naming
 
-The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). `TurquoiseBot.java` is always the most advanced engine: currently an exact copy of KingSafetyBot (v2.8), and the file where the next version is developed. Besides it, the source tree keeps only the latest frozen version (KingSafetyBot) and its baseline (SEEBot) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
+The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). `TurquoiseBot.java` is always the most advanced engine: currently identical in behaviour to ReverseFutilityBot (v2.9), and the file where the next version is developed. Besides it, the source tree keeps the latest frozen version (ReverseFutilityBot), its baseline (KingSafetyBot) and SEEBot (the reference `KingSafetyTest` checks KingSafetyBot against) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
 
 | Version | Class | Date | Headline change |
 |---|---|---|---|
@@ -52,10 +53,11 @@ The project is one development line (TurquoiseBot). Each benchmarked milestone i
 | 2.6 | TexelBot | 2026-07-29 | Texel-tuned evaluation constants |
 | 2.7 | SEEBot | 2026-08-01 | Static-exchange evaluation |
 | 2.8 | KingSafetyBot | 2026-10-24 | King-safety evaluation |
+| 2.9 | ReverseFutilityBot | 2026-11-08 | Reverse futility pruning |
 
 The array-based engines before 2.0 were removed from the source tree and are available in git history.
 
-**Git tags:** `v2.1-mobilitybot`, `v2.5-pvsbot`, `v2.6-texelbot`, `v2.7-seebot`, `v2.8-kingsafetybot`. The v2.6 and v2.7 tags share a commit, in which `TexelBot.java` and `SEEBot.java` sit side by side. The tags also preserve the move generator exactly as it was when the results below were recorded (see [Known limitations](#known-limitations)).
+**Git tags:** `v2.1-mobilitybot`, `v2.5-pvsbot`, `v2.6-texelbot`, `v2.7-seebot`, `v2.8-kingsafetybot`, `v2.9-reversefutilitybot`. The v2.6 and v2.7 tags share a commit, in which `TexelBot.java` and `SEEBot.java` sit side by side. The tags also preserve the move generator exactly as it was when the results below were recorded (see [Known limitations](#known-limitations)).
 
 ## Getting started
 
@@ -70,6 +72,7 @@ cp src/precomputed_attacks.bin bin/        # Windows: copy src\precomputed_attac
 java -cp bin PerftTest                      # perft counts + hash/make-unmake integrity sweep
 java -cp bin EvalSymmetryTest               # eval(position) == eval(colour-flipped position)
 java -cp bin KingSafetyTest                 # king-safety unit tests
+java -cp bin RfpEquivalenceTest             # with RFP off, TurquoiseBot searches exactly like KingSafetyBot
 
 # speed benchmark: nodes/sec at a fixed think time on 20 fixed positions
 java -cp bin SpeedBench 1000 3 SEEBot KingSafetyBot
@@ -77,6 +80,8 @@ java -cp bin SpeedBench 1000 3 SEEBot KingSafetyBot
 # self-play A/B match: engine A defaults to SEEBot (-Dsuite.engineA=<Class>), engine B to KingSafetyBot (-Dsuite.engineB=<Class>)
 java -cp bin -Dsuite.pairs=500 -Dsuite.moveTimeMs=3500 SuiteRunner
 # writes suite_results.csv (one row per game) and suite_log.csv (one row per move) to the working directory
+# -Dsuite.bookSeed=N builds a different opening book (used for tuning, so the standard book is kept for confirmation runs)
+# -Drfp.margin=N / -Drfp.maxDepth=N set TurquoiseBot's reverse futility pruning (-Drfp.margin=100000 switches it off)
 
 # Texel tuner -- needs a dataset of "FEN result" lines (default positions.txt, not included); options are documented in TexelTuner.java
 java -cp bin TexelTuner --data positions.txt --ks-only --params-out tuned.txt
@@ -92,7 +97,7 @@ java -cp bin App
 Every strength claim below comes from `SuiteRunner`, a self-play harness in which engine B (the candidate) plays engine A (the baseline) in-process.
 
 **Games and openings**
-- 200 random quiet openings, 8 plies each (no captures or promotions), deduplicated by position hash, generated from a fixed seed (`20260726`) so every run uses the same book.
+- 200 random quiet openings, 8 plies each (no captures or promotions), deduplicated by position hash, generated from a fixed seed (`20260726`) so every run uses the same book. `-Dsuite.bookSeed=N` builds a different book. From v2.9 on, parameters are tuned on a separate book, so the standard book is used only for confirmation runs.
 - Each opening is played as a color-reversed pair -- one game with A as White, one with A as Black. A match of 500 pairs is 1000 games.
 - 500 pairs cycle through 200 openings, so 100 openings are used 3 times and 100 are used twice. Repeated openings are not fully independent samples (see limitations).
 - Games run one at a time. Fresh engine instances (so empty transposition tables) are created for every game.
@@ -128,8 +133,12 @@ All entries compare a version (B) against the previous baseline (A). "Pairs" mea
 | SEEBot (v2.7) vs TexelBot (v2.6) | pairs | 436 / 142 / 422 | 1000 | 64.7% (647/1000) | +105.3 ± 15.4 | 100.0% | LLR not recorded |
 | KingSafetyBot (v2.8) vs SEEBot (v2.7), 80 ms/move | pairs | 259 / 216 / 525 | 1000 | 52.15% (521.5/1000) | +14.9 ± 13.5 | 97.6% | LLR +2.12, inconclusive |
 | KingSafetyBot (v2.8) vs SEEBot (v2.7), 12 ms/move | pairs | 297 / 231 / 472 | 1000 | 53.3% (533/1000) | +23.0 ± 14.3 | 99.8% | LLR +3.41, H1 bound crossed |
+| ReverseFutilityBot (v2.9) vs KingSafetyBot (v2.8), 80 ms/move | pairs | 356 / 143 / 501 | 1000 | 60.65% (606.5/1000) | +75.2 ± 14.1 | 100.0% | LLR +14.77, H1 bound crossed |
+| ReverseFutilityBot (v2.9) vs KingSafetyBot (v2.8), 12 ms/move | pairs | 341 / 180 / 479 | 1000 | 58.05% (580.5/1000) | +56.4 ± 13.4 | 100.0% | LLR +11.53, H1 bound crossed |
 
-**Cumulative gain.** Chaining the consecutive gains (Killers+LMR, NMP, FirstEngine over NMP, 2.0, 2.1, 2.5, 2.6, 2.7, 2.8 at 80 ms/move) gives about **+800 Elo ± 64** over IterativeDeepeningBot. The interval adds the individual intervals in quadrature. It assumes Elo is additive across matches and mixes the two harness generations, so it is a rough picture and not a rating. As a consistency check, FirstEngine measured directly against KillersAndLMRBot is +117.6, while chaining NMP (+91.0) and FirstEngine over NMP (+31.4) gives +122.4. The two agree well inside the intervals. `docs/make_elo_chart.py` regenerates the chart.
+The v2.9 rows are the two confirmation runs. The 80 ms/move run includes a 6-minute standby partway through, which the owner accepted. Leaving the affected games out changes the result by at most 0.2 Elo (see [Testing history (v2.9)](#testing-history-and-selection-effects-v29)).
+
+**Cumulative gain.** Chaining the consecutive gains (Killers+LMR, NMP, FirstEngine over NMP, 2.0, 2.1, 2.5, 2.6, 2.7, and 2.8 and 2.9 at 80 ms/move) gives about **+875 Elo ± 66** over IterativeDeepeningBot. The interval adds the individual intervals in quadrature. It assumes Elo is additive across matches and mixes the two harness generations, so it is a rough picture and not a rating. As a consistency check, FirstEngine measured directly against KillersAndLMRBot is +117.6, while chaining NMP (+91.0) and FirstEngine over NMP (+31.4) gives +122.4. The two agree well inside the intervals. `docs/make_elo_chart.py` regenerates the chart.
 
 ## Version details
 
@@ -192,6 +201,17 @@ Earlier versions of this README listed depth, node-count and speed tables for th
 
 **Speed cost.** -3.5% nodes/second on `SpeedBench` (20 positions, 1 s/move). In the suite games, -0.8% (80 ms/move) and -2.7% (12 ms/move).
 
+### ReverseFutilityBot, v2.9 (2026-11-08)
+- Reverse futility pruning (also called static null-move pruning). At a node below the root that is searched with a null window, is not in check and has at most 6 plies left: if the static evaluation minus 90 per remaining ply is still at least beta, the node returns beta without searching any moves. The search is fail-hard, so this returns beta like every other cutoff.
+- It is skipped when beta is a mate score. Mate scores are ±(100000 + depth), and the ±50 aspiration window can push a bound slightly below 100000, so any |beta| ≥ 50000 counts as a mate score.
+- The static evaluation is now computed once per node (not in check) and shared with null-move pruning, which behaves exactly as before. Evaluation, move ordering and every other search feature are unchanged from KingSafetyBot v2.8.
+- The margin (90 per ply) was picked from 70, 90 and 110 on a separate opening book. See [Testing history (v2.9)](#testing-history-and-selection-effects-v29).
+- New test: `RfpEquivalenceTest`. With RFP switched off, TurquoiseBot gives the same root score, node count and best move as KingSafetyBot at depths 1 to 7 on the 20 benchmark positions. With RFP on, the depth-7 searches of those positions shrink from 1,046,258 to 712,648 nodes (-32%).
+
+**Where the gain comes from.** At equal time RFP searches deeper: on average 10.16 vs 9.20 plies per move at 80 ms/move, and 7.70 vs 7.04 at 12 ms/move.
+
+**Speed cost.** -2.5% nodes/second on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions), with the average depth reached rising from 10.80 to 11.42. In the suite games, -0.2% (80 ms/move) and -1.4% (12 ms/move).
+
 ## Testing history and selection effects (v2.8)
 
 v2.8 is the third king-safety candidate, so the headline result has to be read with that in mind. The first two used a game-phase taper instead of the attacker-material taper and did not pass. They ran mostly on battery power, where this laptop searches about 2.5x slower, so they are not exactly comparable to the v2.8 runs.
@@ -210,13 +230,33 @@ How to read this:
 - v2.8 is not reported as a clear success. The SPRT at 80 ms/move is inconclusive (LLR +2.12 against a bound of +2.944), and the case rests on both time controls being positive (+14.9 and +23.0).
 - The `SuiteRunner` bug that printed "H0 ACCEPTED at pair 2" for the 12 ms/move run (it locked in a verdict when the first two pairs scored the same, because the variance was near zero) was fixed on 2026-11-07: no LLR is computed before 20 pairs. The final LLR (+3.41) for that run was never affected. The fix does not change any other number in this document.
 
+## Testing history and selection effects (v2.9)
+
+The reverse futility pruning margin was tuned on a separate opening book (seed 1 instead of 20260726), so the standard book was used only for the confirmation runs. Two rules were fixed before any run: pick the margin with the best Elo, unless all three 95% intervals overlap, in which case use 90; and call v2.9 confirmed only if both confirmation runs have a 95% interval lower bound above 0 Elo. B is TurquoiseBot with RFP, A is KingSafetyBot v2.8. All runs were on AC power apart from the disturbance described below.
+
+| Run | Book seed | Time/move | Pairs | W / L / D | Score | Elo (95% CI) | LLR |
+|---|---|---|---|---|---|---|---|
+| Tuning, margin 70 | 1 | 12 ms | 200 | 142 / 82 / 176 | 57.5% | +52.5 [+30.6, +74.8] | +3.88 |
+| Tuning, margin 90 | 1 | 12 ms | 200 | 119 / 78 / 203 | 55.1% | +35.7 [+14.0, +57.8] | +2.51 |
+| Tuning, margin 110 | 1 | 12 ms | 200 | 113 / 87 / 200 | 53.25% | +22.6 [+1.4, +44.0] | +1.50 |
+| **v2.9** confirmation, margin 90 | 20260726 | 12 ms | 500 | 341 / 180 / 479 | 58.05% | +56.4 [+43.1, +69.9] | +11.53 |
+| Confirmation, first attempt (invalid: stopped) | 20260726 | 80 ms | 8 | 6 / 4 / 6 | n/a | n/a | n/a |
+| **v2.9** confirmation, margin 90 | 20260726 | 80 ms | 500 | 356 / 143 / 501 | 60.65% | +75.2 [+61.2, +89.3] | +14.77 |
+
+How to read this:
+- The three tuning intervals all overlap (they share +30.6 to +44.0), so by the rule the margin is 90, even though 70 had the best point estimate. The estimates fall as the margin grows (+52.5, +35.7, +22.6), which hints that a smaller margin could be better. That was not tested on the standard book and is left for a later version.
+- Because the margin was picked on a different book, the confirmation runs carry no selection effect from the margin search. Only one candidate went to confirmation. Both runs clear the decision rule easily: lower bounds +43.1 and +61.2, final LLR +11.53 and +14.77 against a bound of +2.944.
+- Margin 90 scored +35.7 on the tuning book and +56.4 on the standard book at the same time control. The intervals overlap, so the gap is within sampling and book-to-book noise.
+- The first 80 ms/move attempt was stopped after 8 pairs (17 games) by the tool running the match, because the computer was low on memory. It was not stopped because of its score. It was re-run once, as the protocol allows.
+- **Disturbance in the 80 ms/move run.** About 19 minutes in, the laptop was unplugged for about 7 minutes to move it, which the owner accepted before it happened. It ran on battery for about 45 s and spent about 6 minutes in Modern Standby. One move (KingSafetyBot's, in game index 159 of `suite_results.csv`) was frozen mid-search for 366 s and stopped at depth 8. That game ended in a draw by repetition. After the laptop woke, background load lowered search speed to 1.46-1.67M nodes/second for games 160-189, against 1.95-2.18M for the rest of the run. Both engines were slowed equally. Leaving the affected games out changes nothing that matters: without pairs 79-82 (the standby and battery games) the result is +75.0 [+61.1, +89.3], LLR +14.62; without pairs 79-94 (every slowed game) it is +75.1 [+60.9, +89.6], LLR +14.11. Both subsets were fixed from the power log and the node rates before their scores were computed.
+
 ## Known limitations
 
 - **All Elo is relative and measured in self-play.** The engine has not been rated against external engines, so there is no absolute strength figure here. Self-play gains tend to overstate gains against other opponents.
 - **Legacy results (up to v2.1) used a weaker harness** (single start position, no pairing, time control not recorded). See [Testing methodology](#testing-methodology).
 - **Repeated openings.** 500 pairs use 200 openings, so games are not fully independent and the true uncertainty is somewhat larger than the reported intervals.
 - **Move times are very short** (about 80 ms and 12 ms per move). Results may not carry over to longer time controls.
-- **The move generator was fixed after the results above were recorded.** On 2026-11-07 a bug in en passant check evasion was fixed: when a pawn that had just advanced two squares gave check, the en passant capture of that pawn was wrongly rejected as illegal. `PerftTest` now matches all 35 reference node counts (and depth 6 for the two positions that have one), where it previously missed 81 of 674,624 nodes in one position. All results in this document were recorded with the earlier generator, which the version tags preserve, and were not re-run. The affected positions are rare in play.
+- **The move generator was fixed after the v2.8 results were recorded.** On 2026-11-07 a bug in en passant check evasion was fixed: when a pawn that had just advanced two squares gave check, the en passant capture of that pawn was wrongly rejected as illegal. `PerftTest` now matches all 35 reference node counts (and depth 6 for the two positions that have one), where it previously missed 81 of 674,624 nodes in one position. All results up to v2.8 were recorded with the earlier generator, which the version tags preserve, and were not re-run. The v2.9 results were recorded with the fixed generator. The affected positions are rare in play.
 - **Some run conditions were not recorded** for older runs (hardware, power state, and the SPRT LLR for v2.7).
 - **UCI front end and Lichess setup are local only** and not included in the repository.
 
