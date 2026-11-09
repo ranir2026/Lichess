@@ -19,6 +19,7 @@ STEPS = [
     ("v2.7\nSEE", 105.3, 15.4),
     ("v2.8\nking safety", 14.9, 13.5),
     ("v2.9\nRFP", 75.2, 14.1),
+    ("v3.0\nQS evasions", 29.6, 13.6),
 ]
 
 cum, total_sq = [], 0.0

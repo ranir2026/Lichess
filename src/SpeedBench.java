@@ -19,6 +19,7 @@ public class SpeedBench {
         if (name.equals("SEEBot")) return new SEEBot(b);
         if (name.equals("KingSafetyBot")) return new KingSafetyBot(b);
         if (name.equals("ReverseFutilityBot")) return new ReverseFutilityBot(b);
+        if (name.equals("QuiescenceEvasionBot")) return new QuiescenceEvasionBot(b);
         if (name.equals("TurquoiseBot")) return new TurquoiseBot(b);
         throw new IllegalArgumentException("unknown engine: " + name);
     }
@@ -27,6 +28,7 @@ public class SpeedBench {
         if (e instanceof SEEBot) return ((SEEBot) e).evaluate();
         if (e instanceof KingSafetyBot) return ((KingSafetyBot) e).evaluate();
         if (e instanceof ReverseFutilityBot) return ((ReverseFutilityBot) e).evaluate();
+        if (e instanceof QuiescenceEvasionBot) return ((QuiescenceEvasionBot) e).evaluate();
         if (e instanceof TurquoiseBot) return ((TurquoiseBot) e).evaluate();
         throw new IllegalArgumentException("no evaluate() for " + e.getName());
     }

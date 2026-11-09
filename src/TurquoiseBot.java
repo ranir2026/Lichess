@@ -573,7 +573,7 @@ public class TurquoiseBot extends Engine {
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 2.9;
+        this.version = 3.0;
     }
 
 
