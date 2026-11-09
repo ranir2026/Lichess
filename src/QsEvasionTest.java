@@ -25,11 +25,14 @@ public class QsEvasionTest {
 
     public static void main(String[] args) {
         boolean startupEvasions = TurquoiseBot.QS_EVASIONS;
-        System.out.println("QS settings at startup: evasions=" + TurquoiseBot.QS_EVASIONS);
+        boolean startupCheckExt = TurquoiseBot.CHECK_EXTENSION;
+        System.out.println("QS settings at startup: evasions=" + TurquoiseBot.QS_EVASIONS + ", check extension=" + TurquoiseBot.CHECK_EXTENSION);
 
         // ReverseFutilityBot's frozen RFP values, so the comparison with it is like for like
         TurquoiseBot.RFP_MARGIN = 90;
         TurquoiseBot.RFP_MAX_DEPTH = 6;
+        // and no check extension, so the QS switch is the only difference from ReverseFutilityBot
+        TurquoiseBot.CHECK_EXTENSION = false;
 
         // ---- 1. QS evasions off: must equal ReverseFutilityBot v2.9 exactly
         System.out.println();
@@ -109,6 +112,7 @@ public class QsEvasionTest {
 
         // ---- restore
         TurquoiseBot.QS_EVASIONS = startupEvasions;
+        TurquoiseBot.CHECK_EXTENSION = startupCheckExt;
 
         System.out.println();
         System.out.println(failures == 0 ? "QS EVASION TEST: ALL PASSED" : "QS EVASION TEST: " + failures + " FAILED");

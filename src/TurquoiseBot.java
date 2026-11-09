@@ -28,6 +28,14 @@ public class TurquoiseBot extends Engine {
     // behaviour (stand pat, captures only), which makes the search identical to ReverseFutilityBot v2.9.
     static boolean QS_EVASIONS = Boolean.parseBoolean(System.getProperty("qs.evasions", "true"));
 
+    // Check extension: a move that gives check is searched one ply deeper (its child keeps the
+    // parent's depth instead of depth - 1). -Dcheck.extension=false switches it off, which makes the
+    // search identical to QuiescenceEvasionBot v3.0.
+    static boolean CHECK_EXTENSION = Boolean.parseBoolean(System.getProperty("check.extension", "true"));
+    // no extension at or past this ply, so a long run of checks can't overrun the per-ply arrays
+    // (moveHistory has 128 entries; root depth is at most 40, so the main search stays below ply 105)
+    private static final int CHECK_EXT_MAX_PLY = 64;
+
     private static int KNIGHT_MOB_MG = 2;
     private static int KNIGHT_MOB_EG = -2;
     private static int BISHOP_MOB_MG = 6;
@@ -833,13 +841,15 @@ public class TurquoiseBot extends Engine {
             boolean isCapture = Move.isCapture(move);
             boolean isPromotion = Move.isPromotion(move);
             boolean inCheck = board.getCheckers() > 0;
+            // check extension: a move that gives check keeps the parent's depth
+            int childDepth = depth - 1 + ((CHECK_EXTENSION && inCheck && ply < CHECK_EXT_MAX_PLY) ? 1 : 0);
 
             if (movesSearched == 1) {
                 // Principal Variation Search: the first move (best-ordered, likely the PV
                 // move) is searched with the full alpha-beta window. Every subsequent move
                 // is assumed to be worse, so we prove that cheaply with a null (zero-width)
                 // window before paying for a full-window re-search.
-                score = -search(depth - 1, -beta, -alpha, ply + 1);
+                score = -search(childDepth, -beta, -alpha, ply + 1);
                 if (stopSearch) { board.unmakeMove(moves[i]); return alpha; }
             } else {
                 // Late Move Reductions. These work by assuming that the move list is ordered
@@ -848,7 +858,7 @@ public class TurquoiseBot extends Engine {
                 // depth to be more efficient -- BUT, if we find that a move at the end is actually
                 // better than α (from a lower depth search), search that move AGAIN at a
                 // higher depth to be safe (yes inefficient but rare enough that it's fine)
-                int newDepth = depth - 1;
+                int newDepth = childDepth;
                 if (depth >= 3 && movesSearched > 4 && !isCapture && !isPromotion && !inCheck) {
                     // don't want to reduce important moves such as captures, promotions, moves in check
                     int reduction = LMR_TABLE[depth][Math.min(movesSearched, 63)];
@@ -861,8 +871,8 @@ public class TurquoiseBot extends Engine {
 
                 // it beat alpha -- re-search at full depth (if reduced) and/or full window
                 // (if it could still land inside (alpha, beta)) to get an accurate score
-                if (score > alpha && (newDepth < depth - 1 || score < beta)) {
-                    score = -search(depth - 1, -beta, -alpha, ply + 1);
+                if (score > alpha && (newDepth < childDepth || score < beta)) {
+                    score = -search(childDepth, -beta, -alpha, ply + 1);
                     if (stopSearch) { board.unmakeMove(move); return alpha; }
                 }
             }
