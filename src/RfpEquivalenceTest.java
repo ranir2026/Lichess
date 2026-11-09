@@ -4,9 +4,10 @@ import java.lang.reflect.Method;
 /**
  * Checks reverse futility pruning in TurquoiseBot.
  *
- *  1. RFP off (TurquoiseBot.RFP_MARGIN = 100000): TurquoiseBot must search exactly like KingSafetyBot
+ *  1. RFP off (TurquoiseBot.RFP_MARGIN = 100000) and in-check quiescence off (QS_EVASIONS = false):
+ *     TurquoiseBot must search exactly like KingSafetyBot
  *     on every TestPositions.BENCH position at depths 1..7 -- same root score, same cumulative node
- *     count and same root best move -- proof that the only change in TurquoiseBot is RFP.
+ *     count and same root best move -- proof that nothing else changed since v2.8.
  *  2. RFP on (startup margin): the node counts must differ from KingSafetyBot on at least one
  *     position, showing RFP is actually live.
  *
@@ -19,24 +20,27 @@ public class RfpEquivalenceTest {
 
     public static void main(String[] args) {
         int startupMargin = TurquoiseBot.RFP_MARGIN;
+        boolean startupEvasions = TurquoiseBot.QS_EVASIONS;
         System.out.println("RFP settings at startup: margin=" + TurquoiseBot.RFP_MARGIN + " maxDepth=" + TurquoiseBot.RFP_MAX_DEPTH);
 
         // ---- 1. RFP off: must equal KingSafetyBot exactly
         System.out.println();
         TurquoiseBot.RFP_MARGIN = 100000;
+        TurquoiseBot.QS_EVASIONS = false;
         try {
             int mismatches = 0;
             for (String fen : TestPositions.BENCH) {
                 if (!sameTree(fen)) mismatches++;
             }
-            check("RFP off: score, nodes and best move == KingSafetyBot (20 positions, depth 1-7)", mismatches == 0, mismatches + " positions differ");
+            check("RFP and QS evasions off: score, nodes and best move == KingSafetyBot (20 positions, depth 1-7)", mismatches == 0, mismatches + " positions differ");
         } catch (ReflectiveOperationException | RuntimeException e) {
-            check("RFP off: score, nodes and best move == KingSafetyBot (20 positions, depth 1-7)", false, "reflection/search error: " + e);
+            check("RFP and QS evasions off: score, nodes and best move == KingSafetyBot (20 positions, depth 1-7)", false, "reflection/search error: " + e);
         }
 
         // ---- 2. RFP on: node counts must differ somewhere
         System.out.println();
         TurquoiseBot.RFP_MARGIN = startupMargin;
+        TurquoiseBot.QS_EVASIONS = startupEvasions;
         try {
             int differing = 0;
             long totalT = 0, totalK = 0;

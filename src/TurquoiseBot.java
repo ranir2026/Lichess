@@ -23,6 +23,11 @@ public class TurquoiseBot extends Engine {
     // window can shift them slightly below MATE_SCORE, so the bound sits well below it.
     private static final int RFP_MATE_BOUND = MATE_SCORE / 2;
 
+    // Quiescence search while in check: no stand pat (a static eval means nothing in check), every
+    // legal evasion is searched, and having none is checkmate. -Dqs.evasions=false restores the old
+    // behaviour (stand pat, captures only), which makes the search identical to ReverseFutilityBot v2.9.
+    static boolean QS_EVASIONS = Boolean.parseBoolean(System.getProperty("qs.evasions", "true"));
+
     private static int KNIGHT_MOB_MG = 2;
     private static int KNIGHT_MOB_EG = -2;
     private static int BISHOP_MOB_MG = 6;
@@ -936,9 +941,13 @@ public class TurquoiseBot extends Engine {
         if (board.isFiftyMoveRule()) return DRAW_SCORE;
         if (board.isThreefoldRepetition()) return REPETITION_DRAW_SCORE;
 
-        int eval = evaluate();
-        if (eval >= beta) return beta;
-        if (eval > alpha) alpha = eval;
+        // in check (with QS_EVASIONS on) there is no stand pat: every evasion is searched below
+        boolean evasionNode = QS_EVASIONS && board.getCheckers() != 0;
+        if (!evasionNode) {
+            int eval = evaluate();
+            if (eval >= beta) return beta;
+            if (eval > alpha) alpha = eval;
+        }
         if (isTimeUp()) { stopSearch = true; return alpha; }
         nodesSearched++;
 
@@ -947,10 +956,13 @@ public class TurquoiseBot extends Engine {
         else moves = new int[MoveGenerator.MAX_MOVES];
         int count = MoveGenerator.generateLegalMoves(board, moves);
         boolean inCheck = board.getCheckers() != 0;
+        // checkmated. search() scores mates -MATE_SCORE - depth with depth >= 1, so a mate found
+        // here (depth 0) ranks as the most distant one
+        if (evasionNode && count == 0) return -MATE_SCORE;
 
         for (int i = 0; i < count; i++) {
-            // if the move isn't a capture, we can disregard it
-            if (!Move.isCapture(moves[i])) continue;
+            // outside check only captures are searched; at an evasion node every legal move is
+            if (!evasionNode && !Move.isCapture(moves[i])) continue;
             if (isTimeUp()) { stopSearch = true; return alpha; }
             int mv = moves[i];
             int fromSq2 = Move.getStart(mv);
