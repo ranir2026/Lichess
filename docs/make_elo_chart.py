@@ -20,6 +20,7 @@ STEPS = [
     ("v2.8\nking safety", 14.9, 13.5),
     ("v2.9\nRFP", 75.2, 14.1),
     ("v3.0\nQS evasions", 29.6, 13.6),
+    ("v3.1\ncheck ext.", 14.9, 13.4),
 ]
 
 cum, total_sq = [], 0.0
@@ -33,7 +34,7 @@ total, total_ci = cum[-1], sqrt(total_sq)
 W, H = 960, 470
 L, R, T, B = 70, 20, 70, 90
 pw, ph = W - L - R, H - T - B
-ymax = 900
+ymax = 1050
 
 out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
        f'font-family="Segoe UI, Helvetica, Arial, sans-serif">',
