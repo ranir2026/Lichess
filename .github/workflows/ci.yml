@@ -59,6 +59,8 @@ jobs:
         run: java -cp out QsEvasionTest
       - name: CheckExtensionTest
         run: java -cp out CheckExtensionTest
+      - name: TimeCapTest
+        run: java -cp out TimeCapTest
 
   bench:
     name: Bench signature
@@ -101,15 +103,15 @@ jobs:
         run: |
           javac --release 8 -d out src/*.java
           cp src/precomputed_attacks.bin out/
-      - name: Smoke match (4 pairs, CheckExtensionBot vs TurquoiseBot)
+      - name: Smoke match (4 pairs, TimeCapBot vs TurquoiseBot)
         run: |
-          cd out && java -cp . -Dsuite.failOnError=true -Dsuite.engineA=CheckExtensionBot -Dsuite.engineB=TurquoiseBot -Dsuite.pairs=4 -Dsuite.moveTimeMs=860 SuiteRunner | tee ../smoke.txt
+          cd out && java -cp . -Dsuite.failOnError=true -Dsuite.engineA=TimeCapBot -Dsuite.engineB=TurquoiseBot -Dsuite.pairs=4 -Dsuite.moveTimeMs=860 SuiteRunner | tee ../smoke.txt
       - name: Smoke match summary
         if: always()
         run: |
           if [ -f smoke.txt ]; then
             {
-              echo '### Smoke match (4 pairs, CheckExtensionBot vs TurquoiseBot)'
+              echo '### Smoke match (4 pairs, TimeCapBot vs TurquoiseBot)'
               echo
               echo '```'
               tail -n 25 smoke.txt

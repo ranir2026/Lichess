@@ -40,11 +40,11 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 | Search | Iterative deepening, alpha-beta, principal variation search (PVS), check extension, quiescence search (captures, and every evasion when in check), transposition table, null-move pruning, reverse futility pruning, late move reductions (LMR), aspiration windows, static-exchange evaluation (SEE) |
 | Move ordering | Hash move, killer moves, history heuristic, counter-move heuristic, SEE |
 | Evaluation | Tapered (midgame/endgame) piece-square tables including a separate king endgame table, tapered mobility, isolated pawns, passed pawns with king-proximity scaling, king safety (pawn shield, open files, king-zone attackers, attacker-material scaling). Constants are Texel-tuned |
-| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `RfpEquivalenceTest`, `QsEvasionTest`, `CheckExtensionTest`, `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), a Swing GUI (`App`) |
+| Testing and tooling | `PerftTest`, `EvalSymmetryTest`, `KingSafetyTest`, `RfpEquivalenceTest`, `QsEvasionTest`, `CheckExtensionTest`, `TimeCapTest`, `BenchTest`, `Bench` (fixed-depth node-count signature), `SpeedBench`, `SuiteRunner` (self-play A/B harness), `TexelTuner` (parameter tuner), a Swing GUI (`App`) |
 
 ## Versions and naming
 
-The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). `TurquoiseBot.java` is always the most advanced engine: currently identical in behaviour to CheckExtensionBot (v3.1), and the file where the next version is developed. Besides it, the source tree keeps the latest frozen version (CheckExtensionBot), the baselines the equivalence tests compare against (QuiescenceEvasionBot for `CheckExtensionTest`, ReverseFutilityBot for `QsEvasionTest`, KingSafetyBot for `RfpEquivalenceTest`) and SEEBot (the reference `KingSafetyTest` checks KingSafetyBot against) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
+The project is one development line (TurquoiseBot). Each benchmarked milestone is frozen as its own class and then named after its headline feature, so it can be used as a fixed opponent. Versions from 2.0 onward carry a version number (`getVersion()` in code). `TurquoiseBot.java` is always the most advanced engine: currently identical in behaviour to TimeCapBot (v3.2), and the file where the next version is developed. Besides it, the source tree keeps the latest frozen version (TimeCapBot) plus CheckExtensionBot, which `TimeCapTest` compares against, the baselines the equivalence tests compare against (QuiescenceEvasionBot for `CheckExtensionTest`, ReverseFutilityBot for `QsEvasionTest`, KingSafetyBot for `RfpEquivalenceTest`) and SEEBot (the reference `KingSafetyTest` checks KingSafetyBot against) as classes. Every earlier milestone is a git tag, so a fixed opponent can be rebuilt with `git checkout <tag>`.
 
 | Version | Class | Date | Headline change |
 |---|---|---|---|
@@ -61,10 +61,11 @@ The project is one development line (TurquoiseBot). Each benchmarked milestone i
 | 2.9 | ReverseFutilityBot | 2026-11-08 | Reverse futility pruning |
 | 3.0 | QuiescenceEvasionBot | 2026-11-09 | Quiescence search of every evasion when in check |
 | 3.1 | CheckExtensionBot | 2026-11-09 | Check extension: a move that gives check is searched one ply deeper |
+| 3.2 | TimeCapBot | 2026-11-13 | Time management: the planned think time is capped at the time left |
 
 The array-based engines before 2.0 were removed from the source tree and are available in git history.
 
-**Git tags:** `v2.1-mobilitybot`, `v2.5-pvsbot`, `v2.6-texelbot`, `v2.7-seebot`, `v2.8-kingsafetybot`, `v2.9-reversefutilitybot`, `v3.0-quiescenceevasionbot`, `v3.1-checkextensionbot`. The v2.6 and v2.7 tags share a commit, in which `TexelBot.java` and `SEEBot.java` sit side by side. The tags also preserve the move generator exactly as it was when the results below were recorded (see [Known limitations](#known-limitations)).
+**Git tags:** `v2.1-mobilitybot`, `v2.5-pvsbot`, `v2.6-texelbot`, `v2.7-seebot`, `v2.8-kingsafetybot`, `v2.9-reversefutilitybot`, `v3.0-quiescenceevasionbot`, `v3.1-checkextensionbot`, `v3.2-timecapbot`. The v2.6 and v2.7 tags share a commit, in which `TexelBot.java` and `SEEBot.java` sit side by side. The tags also preserve the move generator exactly as it was when the results below were recorded (see [Known limitations](#known-limitations)).
 
 ## Getting started
 
@@ -82,6 +83,7 @@ java -cp bin KingSafetyTest                 # king-safety unit tests
 java -cp bin RfpEquivalenceTest             # with RFP, QS evasions and the check extension off, TurquoiseBot searches exactly like KingSafetyBot
 java -cp bin QsEvasionTest                  # with QS evasions and the check extension off, TurquoiseBot searches exactly like ReverseFutilityBot
 java -cp bin CheckExtensionTest             # with the check extension off, TurquoiseBot searches exactly like QuiescenceEvasionBot
+java -cp bin TimeCapTest                    # the planned think time never exceeds the time left; with the cap off it matches CheckExtensionBot
 java -cp bin BenchTest                      # frozen engines' bench signatures must not change; exits non-zero if one does
 java -cp bin Bench                          # fixed-depth node-count signature per engine; deterministic, so an unchanged signature means an unchanged search
 
@@ -96,6 +98,8 @@ java -cp bin -Dsuite.pairs=500 -Dsuite.moveTimeMs=3500 SuiteRunner
 # -Drfp.margin=N / -Drfp.maxDepth=N set TurquoiseBot's reverse futility pruning (-Drfp.margin=100000 switches it off)
 # -Dqs.evasions=false switches off TurquoiseBot's quiescence check evasions (stand pat and captures only, as in v2.9)
 # -Dcheck.extension=false switches off TurquoiseBot's check extension (as in v3.0)
+# -Dtime.cap=false switches off TurquoiseBot's time cap (as in v3.1)
+# -Dtime.overheadMs=N sets the reserve the time cap keeps back (default 50 ms)
 
 # Texel tuner -- needs a dataset of "FEN result" lines (default positions.txt, not included); options are documented in TexelTuner.java
 java -cp bin TexelTuner --data positions.txt --ks-only --params-out tuned.txt
@@ -109,9 +113,9 @@ java -cp bin App
 ## Continuous integration
 
 A GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and pull request, with three jobs:
-- **Correctness:** compiles with `--release 8` and runs the six correctness tests.
+- **Correctness:** compiles with `--release 8` and runs the seven correctness tests.
 - **Bench signatures:** `BenchTest` must pass. The frozen engines share `Board`, `MoveGenerator`, `Zobrist` and the transposition-table entry with the dev engine, so a change to shared code that alters a baseline's signature fails CI. The dev engine's signature is shown in the run summary.
-- **Smoke match:** 4 pairs, CheckExtensionBot vs TurquoiseBot at 860 (about 12 ms per move), failing on any illegal move, error or timeout.
+- **Smoke match:** 4 pairs, TimeCapBot vs TurquoiseBot at 860 (about 12 ms per move), failing on any illegal move, error or timeout.
 
 CI checks correctness and determinism, not strength. Shared runners vary in speed, so strength results come only from the SuiteRunner runs in [Results](#results).
 
@@ -168,6 +172,8 @@ The v2.9 rows are the two confirmation runs. The 80 ms/move run includes a 6-min
 The v3.0 rows are its two confirmation runs. In the 12 ms/move v3.0 run both engines averaged 14.1 ms per move, against 12.6 ms in the v2.9 run at the same setting (see [Testing history (v3.0)](#testing-history-and-selection-effects-v30)).
 
 The v3.1 rows are its two confirmation runs. Both engines averaged 13.5 ms per move in the 12 ms/move run and 78.8 ms in the 80 ms/move run (see [Testing history (v3.1)](#testing-history-and-selection-effects-v31)).
+
+v3.2 has no row. It changes only time management, and the search is unchanged (the same bench signature as v3.1). SuiteRunner can't measure it: it passes a constant time left with no increment, so the cap never binds in a suite game. Its absolute rating is to be measured separately.
 
 **Cumulative gain.** Chaining the consecutive gains (Killers+LMR, NMP, FirstEngine over NMP, 2.0, 2.1, 2.5, 2.6, 2.7, and 2.8, 2.9, 3.0 and 3.1 at 80 ms/move) gives about **+920 Elo ± 68** over IterativeDeepeningBot. The interval adds the individual intervals in quadrature. It assumes Elo is additive across matches and mixes the two harness generations, so it is a rough picture and not a rating. As a consistency check, FirstEngine measured directly against KillersAndLMRBot is +117.6, while chaining NMP (+91.0) and FirstEngine over NMP (+31.4) gives +122.4. The two agree well inside the intervals. `docs/make_elo_chart.py` regenerates the chart.
 
@@ -264,6 +270,12 @@ Earlier versions of this README listed depth, node-count and speed tables for th
 **Where the gain comes from.** Not from searching deeper overall. At equal time CheckExtensionBot completes fewer iterations than QuiescenceEvasionBot (9.24 vs 10.08 plies per move at 80 ms/move, 6.93 vs 7.54 at 12 ms/move), because lines with checks are searched beyond that nominal depth. The extension trades uniform depth for extra depth along checking lines.
 
 **Speed cost.** No slowdown measured. Nodes/second rose by 2.4% on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions), with the average depth reached falling from 11.13 to 10.93. In the suite games, nodes/second rose by 6.6% (80 ms/move) and 7.5% (12 ms/move).
+
+### TimeCapBot, v3.2 (2026-11-13)
+- What was wrong. The planned think time (timeLeft / 40 + increment, or 1000 + increment in the first 8 plies) was never capped at the time left. With 1.5 s left and a 2 s increment it planned 2.04 s, so it could flag. This affected the Lichess bot only, never SuiteRunner, which passes a constant time left with no increment.
+- The fix. The planned think time is capped at max(1, timeLeft - 50 ms). The 50 ms reserve can be changed with `-Dtime.overheadMs` in TurquoiseBot, and `-Dtime.cap=false` switches the cap off.
+- Nothing else changed. The search is identical: the bench signature is 2246792, as in v3.1.
+- New test: `TimeCapTest`, in three parts. (1) On the start position and after 8 plies, over 136 cases (17 clock values, 4 increments, 2 positions), the cap changes 64 results. Every changed case is one where v3.1 planned more than timeLeft - 50. With the cap on no result exceeds max(1, timeLeft - 50), and with it off every result equals v3.1. (2) With the constant clocks SuiteRunner uses, the time formula equals v3.1. (3) At 1500 ms left with a 2000 ms increment, the cap plans 1450 ms where v3.1 plans 2037 ms. The measured search took 1441 ms, against 2028 ms for CheckExtensionBot in the same test run.
 
 ## Testing history and selection effects (v2.8)
 

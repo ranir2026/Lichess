@@ -19,7 +19,7 @@ public class Bench {
 
     public static final int DEFAULT_DEPTH = 8;
 
-    public static final String[] ENGINES = {"SEEBot", "KingSafetyBot", "ReverseFutilityBot", "QuiescenceEvasionBot", "CheckExtensionBot", "TurquoiseBot"};
+    public static final String[] ENGINES = {"SEEBot", "KingSafetyBot", "ReverseFutilityBot", "QuiescenceEvasionBot", "CheckExtensionBot", "TimeCapBot", "TurquoiseBot"};
 
     /** Total nodes searched by fixed-depth iterative deepening 1..depth over TestPositions.BENCH. */
     public static long signature(String engineClass, int depth) throws ReflectiveOperationException {

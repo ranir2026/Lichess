@@ -36,6 +36,14 @@ public class TurquoiseBot extends Engine {
     // (moveHistory has 128 entries; root depth is at most 40, so the main search stays below ply 105)
     private static final int CHECK_EXT_MAX_PLY = 64;
 
+    // Time cap: the planned think time (timeLeft / 40 + increment) is capped at timeLeft - overhead.
+    // Without it, a clock below the increment can flag (1.5 s left, +2 s increment: plans 2.04 s).
+    // SuiteRunner can't see this: it passes a constant time left and no increment, so timeLeft / 40
+    // is always far below timeLeft - 50. -Dtime.cap=false switches it off, which makes the time
+    // computation identical to CheckExtensionBot v3.1. -Dtime.overheadMs sets the reserve kept back.
+    static boolean TIME_CAP = Boolean.parseBoolean(System.getProperty("time.cap", "true"));
+    static int MOVE_OVERHEAD_MS = Integer.getInteger("time.overheadMs", 50);
+
     private static int KNIGHT_MOB_MG = 2;
     private static int KNIGHT_MOB_EG = -2;
     private static int BISHOP_MOB_MG = 6;
@@ -581,7 +589,7 @@ public class TurquoiseBot extends Engine {
 
         this.name = "TurquoiseBot";
         this.author = "RR";
-        this.version = 3.1;
+        this.version = 3.2;
     }
 
 
@@ -1066,15 +1074,22 @@ public class TurquoiseBot extends Engine {
         }
     }
 
-    public int getBestMove(int totalTimeLeft, int increment) {
-        int maxDepth = 40;
-        long startTime = System.currentTimeMillis();
+    // planned think time in ms for the current position (no search side effects)
+    long computeTimeLimit(int totalTimeLeft, int increment) {
         long timeLimit = Math.max(1, (totalTimeLeft / 40) + increment);
 
         // if we're still in the opening (first 4 full moves = 8 plies), play faster
         if (board.getMoveCount() < 8) {
             timeLimit = Math.min(timeLimit, 1000 + increment);
         }
+        if (TIME_CAP) timeLimit = Math.min(timeLimit, Math.max(1, totalTimeLeft - MOVE_OVERHEAD_MS));
+        return timeLimit;
+    }
+
+    public int getBestMove(int totalTimeLeft, int increment) {
+        int maxDepth = 40;
+        long startTime = System.currentTimeMillis();
+        long timeLimit = computeTimeLimit(totalTimeLeft, increment);
 
         // hardcode in 1. e4 e5
         if (board.getMoveCount() == 1 && board.turn == Board.BLACK) {

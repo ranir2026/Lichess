@@ -13,8 +13,8 @@
  */
 public class BenchTest {
 
-    private static final String[] FROZEN   = {"SEEBot", "KingSafetyBot", "ReverseFutilityBot", "QuiescenceEvasionBot", "CheckExtensionBot"};
-    private static final long[]   EXPECTED = {2497203L, 2574237L, 1748742L, 1871906L, 2246792L}; // at Bench.DEFAULT_DEPTH (8)
+    private static final String[] FROZEN   = {"SEEBot", "KingSafetyBot", "ReverseFutilityBot", "QuiescenceEvasionBot", "CheckExtensionBot", "TimeCapBot"};
+    private static final long[]   EXPECTED = {2497203L, 2574237L, 1748742L, 1871906L, 2246792L, 2246792L}; // at Bench.DEFAULT_DEPTH (8)
 
     private static int failures = 0;
 
