@@ -1,6 +1,6 @@
 # TurquoiseBOT
 
-[![CI](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml/badge.svg?branch=avoiding-errors)](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml)
+[![CI](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml)
 
 A chess engine written from scratch in Java: bitboard move generation, an alpha-beta search with the usual modern pruning and ordering techniques, a Texel-tuned evaluation, and a self-play testing harness that decides every change with confidence intervals and a sequential probability ratio test (SPRT).
 
