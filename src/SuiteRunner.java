@@ -36,6 +36,7 @@ public class SuiteRunner {
     private static final int    MOVE_LIMIT   = 400;   // half-move ceiling -> draw
     private static final String LOG_PATH     = "suite_log.csv";      // per-move efficiency stats (unchanged schema)
     private static final String RESULTS_PATH = "suite_results.csv";  // per-game outcomes (new)
+    private static final boolean FAIL_ON_ERROR = Boolean.getBoolean("suite.failOnError"); // opt-in (CI smoke matches): exit 1 on any illegal move, game error or timeout
 
     // opening book: quiet random openings keep material equal so games stay balanced but diverse
     private static final int    OPENING_PLIES = 8;          // depth of the random opening (must be even -> white to move after)
@@ -109,6 +110,7 @@ public class SuiteRunner {
     // ------------------------------------------------------------------ main
     public static void main(String[] args) {
         int aWins = 0, bWins = 0, draws = 0, timeoutDraws = 0, limitDraws = 0;
+        int illegalGames = 0, errorGames = 0; // only used by -Dsuite.failOnError
 
         long aTotalNodes = 0, bTotalNodes = 0;
         long aTotalMs    = 0, bTotalMs    = 0;
@@ -125,6 +127,7 @@ public class SuiteRunner {
                 System.out.println("Engine B params loaded from " + PARAMS_B_PATH);
             } catch (IOException | NumberFormatException e) {
                 System.err.println("Could not load engine B params: " + e.getMessage());
+                if (FAIL_ON_ERROR) System.exit(1);
                 return;
             }
         }
@@ -211,6 +214,8 @@ public class SuiteRunner {
                             break;
                     }
                     pairScore += bScore;
+                    if ("ILLEGAL".equals(mr.reason)) illegalGames++;
+                    if ("ERROR".equals(mr.reason))   errorGames++;
 
                     aTotalNodes += mr.aTotalNodes; bTotalNodes += mr.bTotalNodes;
                     aTotalMs    += mr.aTotalMs;    bTotalMs    += mr.bTotalMs;
@@ -246,6 +251,7 @@ public class SuiteRunner {
 
         } catch (IOException e) {
             System.err.println("Failed to open output files: " + e.getMessage());
+            if (FAIL_ON_ERROR) System.exit(1);
         }
 
         executor.shutdownNow();
@@ -256,6 +262,14 @@ public class SuiteRunner {
                 aTotalNodes, bTotalNodes, aTotalMs, bTotalMs,
                 aTotalMoves, bTotalMoves, aMaxDepth, bMaxDepth,
                 pairScores, sprtVerdict);
+
+        if (FAIL_ON_ERROR) {
+            if (illegalGames + errorGames + timeoutDraws > 0) {
+                System.err.println("SUITE CHECK FAILED: " + illegalGames + " illegal, " + errorGames + " error, " + timeoutDraws + " timeout");
+                System.exit(1);
+            }
+            System.out.println("SUITE CHECK: PASSED (no illegal moves, errors or timeouts)");
+        }
     }
 
     // ------------------------------------------------------------- opening book

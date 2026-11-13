@@ -1,5 +1,7 @@
 # TurquoiseBOT
 
+[![CI](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml/badge.svg?branch=avoiding-errors)](https://github.com/ranir2026/Lichess/actions/workflows/ci.yml)
+
 A chess engine written from scratch in Java: bitboard move generation, an alpha-beta search with the usual modern pruning and ordering techniques, a Texel-tuned evaluation, and a self-play testing harness that decides every change with confidence intervals and a sequential probability ratio test (SPRT).
 
 When the bot is online, it can be challenged in blitz and rapid time controls on Lichess at: https://lichess.org/@/TurquoiseBOT.
@@ -16,16 +18,17 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 1. [Engine at a glance](#engine-at-a-glance)
 2. [Versions and naming](#versions-and-naming)
 3. [Getting started](#getting-started)
-4. [Testing methodology](#testing-methodology)
-5. [Results](#results)
-6. [Version details](#version-details)
-7. [Testing history and selection effects (v2.8)](#testing-history-and-selection-effects-v28)
-8. [Testing history and selection effects (v2.9)](#testing-history-and-selection-effects-v29)
-9. [Testing history and selection effects (v3.0)](#testing-history-and-selection-effects-v30)
-10. [Testing history and selection effects (v3.1)](#testing-history-and-selection-effects-v31)
-11. [Known limitations](#known-limitations)
-12. [Glossary and references](#glossary-and-references)
-13. [License](#license)
+4. [Continuous integration](#continuous-integration)
+5. [Testing methodology](#testing-methodology)
+6. [Results](#results)
+7. [Version details](#version-details)
+8. [Testing history and selection effects (v2.8)](#testing-history-and-selection-effects-v28)
+9. [Testing history and selection effects (v2.9)](#testing-history-and-selection-effects-v29)
+10. [Testing history and selection effects (v3.0)](#testing-history-and-selection-effects-v30)
+11. [Testing history and selection effects (v3.1)](#testing-history-and-selection-effects-v31)
+12. [Known limitations](#known-limitations)
+13. [Glossary and references](#glossary-and-references)
+14. [License](#license)
 
 ---
 
@@ -79,6 +82,8 @@ java -cp bin KingSafetyTest                 # king-safety unit tests
 java -cp bin RfpEquivalenceTest             # with RFP, QS evasions and the check extension off, TurquoiseBot searches exactly like KingSafetyBot
 java -cp bin QsEvasionTest                  # with QS evasions and the check extension off, TurquoiseBot searches exactly like ReverseFutilityBot
 java -cp bin CheckExtensionTest             # with the check extension off, TurquoiseBot searches exactly like QuiescenceEvasionBot
+java -cp bin BenchTest                      # frozen engines' bench signatures must not change; exits non-zero if one does
+java -cp bin Bench                          # fixed-depth node-count signature per engine; deterministic, so an unchanged signature means an unchanged search
 
 # speed benchmark: nodes/sec at a fixed think time on 20 fixed positions
 java -cp bin SpeedBench 1000 3 SEEBot KingSafetyBot
@@ -87,6 +92,7 @@ java -cp bin SpeedBench 1000 3 SEEBot KingSafetyBot
 java -cp bin -Dsuite.pairs=500 -Dsuite.moveTimeMs=3500 SuiteRunner
 # writes suite_results.csv (one row per game) and suite_log.csv (one row per move) to the working directory
 # -Dsuite.bookSeed=N builds a different opening book (used for tuning, so the standard book is kept for confirmation runs)
+# -Dsuite.failOnError=true exits non-zero if any game ends in an illegal move, an error or a timeout (used by CI)
 # -Drfp.margin=N / -Drfp.maxDepth=N set TurquoiseBot's reverse futility pruning (-Drfp.margin=100000 switches it off)
 # -Dqs.evasions=false switches off TurquoiseBot's quiescence check evasions (stand pat and captures only, as in v2.9)
 # -Dcheck.extension=false switches off TurquoiseBot's check extension (as in v3.0)
@@ -99,6 +105,15 @@ java -cp bin App
 ```
 
 **Playing on Lichess.** The engine speaks UCI through a front end that runs under [lichess-bot](https://github.com/lichess-bot-devs/lichess-bot). The UCI front end and the lichess-bot configuration, which hold an API token, are local only and not part of this repository.
+
+## Continuous integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and pull request, with three jobs:
+- **Correctness:** compiles with `--release 8` and runs the six correctness tests.
+- **Bench signatures:** `BenchTest` must pass. The frozen engines share `Board`, `MoveGenerator`, `Zobrist` and the transposition-table entry with the dev engine, so a change to shared code that alters a baseline's signature fails CI. The dev engine's signature is shown in the run summary.
+- **Smoke match:** 4 pairs, CheckExtensionBot vs TurquoiseBot at 860 (about 12 ms per move), failing on any illegal move, error or timeout.
+
+CI checks correctness and determinism, not strength. Shared runners vary in speed, so strength results come only from the SuiteRunner runs in [Results](#results).
 
 ## Testing methodology
 

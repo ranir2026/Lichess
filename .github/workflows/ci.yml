@@ -1,0 +1,126 @@
+# CI for TurquoiseBOT.
+#
+# What CI checks:
+#   - correctness: every test in src/ (perft, eval symmetry, king safety, and the
+#     equivalence tests that pin each version to its baseline)
+#   - determinism: the bench signature of every frozen engine must not change, so a
+#     change to shared code (Board, MoveGenerator, Zobrist, TT entry) that alters a
+#     baseline's search fails the build
+#   - games finish: a short self-play match must end without illegal moves, errors or
+#     timeouts (SuiteRunner -Dsuite.failOnError=true)
+#
+# What CI does not check:
+#   - strength. Shared runners vary in speed, so strength comes only from the
+#     500-pair SuiteRunner runs in the README "Results" section.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Build and correctness tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile (--release 8)
+        run: |
+          javac --release 8 -d out src/*.java
+          cp src/precomputed_attacks.bin out/
+      - name: PerftTest
+        run: java -cp out PerftTest
+      - name: EvalSymmetryTest
+        run: java -cp out EvalSymmetryTest
+      - name: KingSafetyTest
+        run: java -cp out KingSafetyTest
+      - name: RfpEquivalenceTest
+        run: java -cp out RfpEquivalenceTest
+      - name: QsEvasionTest
+        run: java -cp out QsEvasionTest
+      - name: CheckExtensionTest
+        run: java -cp out CheckExtensionTest
+
+  bench:
+    name: Bench signature
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile (--release 8)
+        run: |
+          javac --release 8 -d out src/*.java
+          cp src/precomputed_attacks.bin out/
+      - name: Frozen-engine bench signatures
+        run: java -cp out BenchTest
+      - name: Bench (all engines)
+        run: |
+          java -cp out Bench | tee bench.txt
+          {
+            echo '### Bench signatures'
+            echo
+            echo '```'
+            cat bench.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  smoke:
+    name: Self-play smoke match
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile (--release 8)
+        run: |
+          javac --release 8 -d out src/*.java
+          cp src/precomputed_attacks.bin out/
+      - name: Smoke match (4 pairs, CheckExtensionBot vs TurquoiseBot)
+        run: |
+          cd out && java -cp . -Dsuite.failOnError=true -Dsuite.engineA=CheckExtensionBot -Dsuite.engineB=TurquoiseBot -Dsuite.pairs=4 -Dsuite.moveTimeMs=860 SuiteRunner | tee ../smoke.txt
+      - name: Smoke match summary
+        if: always()
+        run: |
+          if [ -f smoke.txt ]; then
+            {
+              echo '### Smoke match (4 pairs, CheckExtensionBot vs TurquoiseBot)'
+              echo
+              echo '```'
+              tail -n 25 smoke.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload suite CSVs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-suite-csv
+          path: out/suite_*.csv
+          retention-days: 14
+          if-no-files-found: warn
