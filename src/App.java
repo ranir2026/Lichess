@@ -237,7 +237,7 @@ public class App {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("BitboardRewrite - Play Bot");
+            JFrame frame = new JFrame("TurquoiseBOT");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             Board board = new Board();
