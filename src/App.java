@@ -237,7 +237,7 @@ public class App {
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             Board board = new Board();
-            board.convertFENtoPosition("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 1");
+            board.convertFENtoPosition("rn1qk1nr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             // board.convertFENtoPosition("3k4/Q7/8/8/8/3K4/8/8 w - - 0 1");
 
             BoardPanel panel = new BoardPanel(board);
