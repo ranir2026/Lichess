@@ -43,6 +43,11 @@ public class App {
             addMouseMotionListener(this);
         }
 
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(windowHeight, windowHeight);
+        }
+
         public void setEvalLabel(JLabel evalLabel) {
             this.evalLabel = evalLabel;
             updateEvalDisplay();
@@ -233,11 +238,10 @@ public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("BitboardRewrite - Play Bot");
-            frame.setSize(1000, 900);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             Board board = new Board();
-            board.convertFENtoPosition("rn1qk1nr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            board.convertFENtoPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             // board.convertFENtoPosition("3k4/Q7/8/8/8/3K4/8/8 w - - 0 1");
 
             BoardPanel panel = new BoardPanel(board);
@@ -249,6 +253,9 @@ public class App {
             frame.getContentPane().add(evalLabel, BorderLayout.NORTH);
             panel.setEvalLabel(evalLabel);
 
+            frame.setResizable(false);
+            frame.pack();
+            frame.setLocationRelativeTo(null);
             frame.setVisible(true);
         });
     }
