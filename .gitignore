@@ -13,4 +13,8 @@ engine_crash.log
 # local-only: UCI front end + its launcher (used by lichess-bot) and editor settings
 src/UciInterface.java
 bin/run_engine.bat
+
+# local-only: start/stop launcher for the Lichess bot (also changes power settings)
+start_bot.bat
+start_bot.ps1
 .vscode/
