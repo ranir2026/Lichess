@@ -9,7 +9,7 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 **Author:** Rahul Rani   
 **Language:** Java (compiles with `--release 8`)   
 **Search:** single-threaded  
-**Strength:** about +920 Elo over the first version in self-play (a rough chained estimate, see [Results](#results))
+**Strength:** about +920 Elo over the first version in self-play (a rough chained estimate, see [Results](#results)). v3.2 rates 2296 ± 12 on the CCRL Blitz scale, measured against 12 rated engines at 10+0.1 on the author's laptop (see [Absolute rating](#absolute-rating-v32))
 
 ![Cumulative Elo vs IterativeDeepeningBot](docs/elo_progression.svg)
 
@@ -21,6 +21,7 @@ When the bot is online, it can be challenged in blitz and rapid time controls on
 4. [Continuous integration](#continuous-integration)
 5. [Testing methodology](#testing-methodology)
 6. [Results](#results)
+   - [Absolute rating (v3.2)](#absolute-rating-v32)
 7. [Version details](#version-details)
 8. [Testing history and selection effects (v2.8)](#testing-history-and-selection-effects-v28)
 9. [Testing history and selection effects (v2.9)](#testing-history-and-selection-effects-v29)
@@ -173,7 +174,52 @@ The v3.0 rows are its two confirmation runs. In the 12 ms/move v3.0 run both eng
 
 The v3.1 rows are its two confirmation runs. Both engines averaged 13.5 ms per move in the 12 ms/move run and 78.8 ms in the 80 ms/move run (see [Testing history (v3.1)](#testing-history-and-selection-effects-v31)).
 
-v3.2 has no row. It changes only time management, and the search is unchanged (the same bench signature as v3.1). SuiteRunner can't measure it: it passes a constant time left with no increment, so the cap never binds in a suite game. Its absolute rating is to be measured separately.
+v3.2 has no row. It changes only time management, and the search is unchanged (the same bench signature as v3.1). SuiteRunner can't measure it: it passes a constant time left with no increment, so the cap never binds in a suite game. Its absolute rating was measured separately, against external engines (see [Absolute rating](#absolute-rating-v32)).
+
+### Absolute rating (v3.2)
+
+TurquoiseBOT v3.2 (TimeCapBot) played a gauntlet against 12 engines with CCRL Blitz ratings, run with fastchess and rated with Ordo, every opponent anchored at its CCRL Blitz rating.
+
+**Result: 2296.3 ± 12.4 on the CCRL Blitz scale** (95% range about 2284 to 2309), from 2016 games: 518 W / 784 D / 714 L, 45.1%.
+
+**Setup**
+- 12 opponents, 168 games each (84 rounds, colours reversed), 10+0.1 time control, 4 games at a time, `8moves_v3` openings, `-srand 20261113`, Hash=16 for opponents that have the option, Threads=1, `timemargin=100` for every engine. Started 2026-11-13 14:42, finished 18:24.
+- Opponents (CCRL Blitz rating): FrankyGo 2014, KhepriChess 2144, GopherCheck 2147, Shuffle 2165, Rusty Rival 2218, Bumblebee 2382, SOFCheck 2384, MinimalChess 2439, Cosette 2442, Wasabi 2545, Tantabus 2554, Blunder 2662. Five more candidates were dropped before the run: Tinman speaks only XBoard, and four (FKTB, Emerald, Loki, Soomi) were blocked by Windows Application Control.
+- FrankyGo and MinimalChess send promotions in upper case (`a7a8Q`), which fastchess scores as illegal, so those two ran behind a pass-through adapter that lowercases `bestmove` lines. Earlier attempts were stopped and discarded for this and two other opponent-side problems (an opponent flagging by 11 ms, and memory exhaustion from Hash=256); none of their games are in the result.
+- **Scale.** CCRL Blitz is 2'+1" on an i7-4770K. This run uses 10+0.1 on an Intel Core Ultra 7 256V laptop, so the number is "on the CCRL Blitz scale, at 10+0.1, on this laptop", not a CCRL rating.
+
+| Per opponent | W / D / L | Score |
+|---|---|---|
+| FrankyGo (2014) | 95 / 64 / 9 | 75.6% |
+| KhepriChess (2144) | 81 / 72 / 15 | 69.6% |
+| GopherCheck (2147) | 69 / 74 / 25 | 63.1% |
+| Shuffle (2165) | 68 / 84 / 16 | 65.5% |
+| Rusty Rival (2218) | 64 / 65 / 39 | 57.4% |
+| Bumblebee (2382) | 33 / 78 / 57 | 42.9% |
+| SOFCheck (2384) | 22 / 80 / 66 | 36.9% |
+| MinimalChess (2439) | 19 / 52 / 97 | 26.8% |
+| Cosette (2442) | 24 / 55 / 89 | 30.7% |
+| Wasabi (2545) | 14 / 69 / 85 | 28.9% |
+| Tantabus (2554) | 17 / 56 / 95 | 26.8% |
+| Blunder (2662) | 12 / 35 / 121 | 17.6% |
+
+**The run was disturbed, and the disturbances do not move the number.** From the Windows System log and the power log, the run had these problems:
+- The laptop went onto battery at 15:23:47, so 1597 of the 2016 games ended on battery (415 on AC, 4 straddled the change). The opponents' mean reported depth fell by 1 to 2.2 plies on battery, so most games ran at a lower effective speed than the AC ones.
+- A Modern Standby with the lid closed (18:00:32-18:18:26) froze 4 games, which ended "time forfeit" on wake with the opponent charged: 4 free wins for TurquoiseBOT. Three idle standbys did not stop the games.
+- The script that kept the machine awake was stopped at about 15:28, so the standbys above were not prevented.
+
+The subsets below were fixed from the logs before any score was computed, and all agree:
+
+| Games | Count | W / D / L | Rating (95%) |
+|---|---|---|---|
+| All | 2016 | 518 / 784 / 714 | 2296.3 ± 12.4 |
+| Without the 4 games frozen by the lid standby | 2012 | 514 / 784 / 714 | 2295.1 ± 12.6 |
+| Without any game that overlapped a standby | 1881 | 479 / 735 / 667 | 2295.8 ± 12.5 |
+| On AC only | 415 | 104 / 179 / 132 | 2305.0 ± 28.8 |
+
+The owner kept this run as the v3.2 rating rather than repeating it on AC.
+
+**Reading the number.** Performance rises with opponent strength (score against the weakest opponent implies about 2210, against the strongest about 2393), so the scale here is compressed relative to CCRL, and the single figure depends on the opponent mix. The 12 opponents bracket the result (mean anchor 2341). The ± is the statistical error from 2016 games and does not include the error in the CCRL anchor ratings (about ±11 to ±17 each, averaged over 12), or the difference in time control and hardware.
 
 **Cumulative gain.** Chaining the consecutive gains (Killers+LMR, NMP, FirstEngine over NMP, 2.0, 2.1, 2.5, 2.6, 2.7, and 2.8, 2.9, 3.0 and 3.1 at 80 ms/move) gives about **+920 Elo ± 68** over IterativeDeepeningBot. The interval adds the individual intervals in quadrature. It assumes Elo is additive across matches and mixes the two harness generations, so it is a rough picture and not a rating. As a consistency check, FirstEngine measured directly against KillersAndLMRBot is +117.6, while chaining NMP (+91.0) and FirstEngine over NMP (+31.4) gives +122.4. The two agree well inside the intervals. `docs/make_elo_chart.py` regenerates the chart.
 
@@ -345,7 +391,7 @@ How to read this:
 
 ## Known limitations
 
-- **All Elo is relative and measured in self-play.** The engine has not been rated against external engines, so there is no absolute strength figure here. Self-play gains tend to overstate gains against other opponents.
+- **Version-to-version Elo is relative and measured in self-play.** Self-play gains tend to overstate gains against other opponents. The only absolute figure is the v3.2 gauntlet (2296 ± 12 on the CCRL Blitz scale), which was run partly on battery and has the caveats listed under [Absolute rating](#absolute-rating-v32).
 - **Legacy results (up to v2.1) used a weaker harness** (single start position, no pairing, time control not recorded). See [Testing methodology](#testing-methodology).
 - **Repeated openings.** 500 pairs use 200 openings, so games are not fully independent and the true uncertainty is somewhat larger than the reported intervals.
 - **Move times are very short** (about 80 ms and 12 ms per move). Results may not carry over to longer time controls.
