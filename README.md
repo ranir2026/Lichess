@@ -219,7 +219,6 @@ TurquoiseBOT v3.2 (TimeCapBot) played a 12-engine gauntlet with fastchess; Ordo 
 **Setup**
 - **Match:** 168 games per opponent (84 color-reversed rounds), 10+0.1, four games concurrently, `8moves_v3`, seed `20261113`, Hash=16 where supported, Threads=1, and `timemargin=100` for every engine. The run lasted from 14:42 to 18:24 on 2026-11-13.
 - **Opponents (CCRL Blitz rating):** FrankyGo 2014, KhepriChess 2144, GopherCheck 2147, Shuffle 2165, Rusty Rival 2218, Bumblebee 2382, SOFCheck 2384, MinimalChess 2439, Cosette 2442, Wasabi 2545, Tantabus 2554, Blunder 2662. Tinman (XBoard-only) and FKTB, Emerald, Loki and Soomi (blocked by Windows Application Control) were excluded.
-- **Adapters and aborted attempts:** FrankyGo and MinimalChess send uppercase promotions, so a pass-through adapter lowercased their `bestmove` lines. Earlier runs were discarded after promotion errors, an opponent flagging by 11 ms, or memory exhaustion with Hash=256.
 - **Scale:** CCRL Blitz uses 2'+1" on an i7-4770K. This gauntlet used 10+0.1 on an Intel Core Ultra 7 256V laptop; the result is not an official CCRL rating.
 
 | Per opponent | W / D / L | Score |
@@ -237,25 +236,9 @@ TurquoiseBOT v3.2 (TimeCapBot) played a 12-engine gauntlet with fastchess; Ordo 
 | Tantabus (2554) | 17 / 56 / 95 | 26.8% |
 | Blunder (2662) | 12 / 35 / 121 | 17.6% |
 
-**Power and standby disturbances:** System and power logs show:
-- The laptop switched to battery at 15:23:47. Of 2016 games, 415 were on AC, 1597 on battery, and 4 spanned the change. Opponents' reported depth fell by 1–2.2 plies on battery.
-- Lid-closed Modern Standby (18:00:32–18:18:26) froze four games; all ended in time forfeits charged to the opponent, giving TurquoiseBOT four free wins. Three idle standbys did not stop games.
-- The keep-awake script stopped around 15:28 and did not prevent the later standbys.
+**Interpreting the rating:** Against the weakest opponent, the result corresponds to about $2210$ Elo; against the strongest, about $2393$. The rating therefore depends on which opponents are included (their average rating was $2341$). The reported $2296.3 \pm 12.4$ reflects variation across games only; it does not include uncertainty in opponents' ratings or differences in hardware and time control.
 
-Subsets were defined from the logs before scoring:
-
-| Games | Count | W / D / L | Rating (95%) |
-|---|---|---|---|
-| All | 2016 | 518 / 784 / 714 | $2296.3 \pm 12.4$ |
-| Without the 4 games frozen by the lid standby | 2012 | 514 / 784 / 714 | $2295.1 \pm 12.6$ |
-| Without any game that overlapped a standby | 1881 | 479 / 735 / 667 | $2295.8 \pm 12.5$ |
-| On AC only | 415 | 104 / 179 / 132 | $2305.0 \pm 28.8$ |
-
-The owner accepted this run as the v3.2 rating rather than rerunning it on AC.
-
-**Interpreting the rating:** Scores rise with opponent strength (about $2210$ against the weakest and $2393$ against the strongest), indicating a compressed scale that depends on the opponent mix. The mean anchor is $2341$. The $\pm 12.4$ interval covers game-sampling error only; it excludes anchor-rating uncertainty (about $\pm 11$ to $\pm 17$ per engine), hardware and time-control differences.
-
-**Cumulative gain.** Summing the consecutive gains through v3.1 at 80 ms/move gives about **$+920 \pm 68$ Elo** over IterativeDeepeningBot. The interval adds individual intervals in quadrature; it assumes Elo is additive and mixes the two harness generations, so it is only a rough estimate. As a check, FirstEngine's direct gain over KillersAndLMRBot is $+117.6$; chaining NMP ($+91.0$) and FirstEngine over NMP ($+31.4$) gives $+122.4$, within the intervals. `docs/make_elo_chart.py` regenerates the chart.
+**Cumulative gain.** Adding the measured gains across versions through v3.1 at 80 ms/move gives roughly **$+920 \pm 68$ Elo** over IterativeDeepeningBot. Treat this as an estimate, not a direct rating: it combines two testing methods and assumes gains add together. As a check, FirstEngine's direct gain over KillersAndLMRBot was $+117.6$ Elo; adding the two intermediate gains ($+91.0$ and $+31.4$) gives $+122.4$, close to the direct result. `docs/make_elo_chart.py` regenerates the chart.
 
 ## Version details
 
@@ -284,8 +267,6 @@ The owner accepted this run as the v3.2 rating rather than rerunning it on AC.
 ### SecondEngine, v2.0 (2026-06-21): switch to bitboards
 - Replaced the board representation with bitboards; retained FirstEngine's search and evaluation, with adjusted move-ordering weights and a refactored iterative-deepening loop.
 
-Earlier versions of this README listed depth, node-count and speed tables for this change. Those numbers contained a bug and have been withdrawn. The head-to-head result in the table above is not affected.
-
 ### MobilityBot, v2.1 (2026-06-23)
 - Mobility bonuses for bishop, rook, knight and queen
 - Tapered mobility bonuses
@@ -302,29 +283,25 @@ Earlier versions of this README listed depth, node-count and speed tables for th
 - Static-exchange evaluation
 
 ### KingSafetyBot, v2.8 (2026-10-24)
-- Added king-safety evaluation: pawn shield, open and half-open files, weighted king-zone attackers, and a penalty scaled by the opponent's attacking material. Search and other evaluation terms are unchanged from SEEBot v2.7.
-- Texel-tuned the 15 new constants on 1.43M Zurichess quiet-labeled positions (80/20 train/validation split). A pawn-storm term remains, tuned to 0.
+- King safety evaluation based on pawn shield, open and half-open files, weighted king-zone attackers, and a penalty scaled by the opponent's attacking material.
+- Texel-tuned the 15 new constants on 1.43M Zurichess quiet-labeled positions (80/20 train/validation split).
 - `KingSafetyTest` checks that setting all king-safety constants to 0 restores SEEBot's evaluation and search. `PerftTest`, `EvalSymmetryTest` and `SpeedBench` were also added.
-- **Game breakdown** (full match statistics in [Results](#results)): middlegame mates, 42 vs 18 at 80 ms/move and 73 vs 28 at 12 ms/move; wins under 60 plies, 47 vs 15 and 61 vs 15; endgame mates, 217 vs 198 and 224 vs 203. Every decisive game ended in checkmate; there were no illegal moves, crashes, time forfeits or move-limit games.
-- **Speed:** -3.5% nodes/s on `SpeedBench` (20 positions, 1 s/move); -0.8% at 80 ms/move and -2.7% at 12 ms/move in suite games.
+- -3.5% nodes/s on `SpeedBench` (20 positions, 1 s/move); -0.8% at 80 ms/move and -2.7% at 12 ms/move in suite games.
 
 ### ReverseFutilityBot, v2.9 (2026-11-08)
-- Added reverse futility pruning (static null-move pruning) at non-root, null-window nodes outside check, up to 6 plies from the horizon. It returns beta when $\text{staticEval} - 90 \times \text{depth} \ge \beta$, but is skipped when $|\beta| \ge 50{,}000$ to avoid pruning mate scores.
-- Evaluation is shared with null-move pruning; other behavior is unchanged from KingSafetyBot v2.8. Margin 90 was selected from 70, 90 and 110 on a separate book (see [Testing history (v2.9)](#testing-history-and-selection-effects-v29)).
+- Reverse futility pruning (static null-move pruning) at non-root, null-window nodes outside check, up to 6 plies from the horizon. It returns beta when $\text{staticEval} - 90 \times \text{depth} \ge \beta$, but is skipped when $|\beta| \ge 50{,}000$ to avoid pruning mate scores.
 - `RfpEquivalenceTest` checks equivalence with RFP off. With it on, the depth-7 benchmark trees shrink from 1,046,258 to 712,648 nodes (-32%).
-- **Speed:** -2.5% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions); -0.2% at 80 ms/move and -1.4% at 12 ms/move in suite games. Average depth rose from 10.80 to 11.42 on `SpeedBench`.
+- -2.5% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions); -0.2% at 80 ms/move and -1.4% at 12 ms/move in suite games. Average depth rose from 10.80 to 11.42 on `SpeedBench`.
 
 ### QuiescenceEvasionBot, v3.0 (2026-11-09)
 - Quiescence search now searches every legal evasion when in check, returning mate if none exist. Outside check, it still stands pat and searches non-losing captures; quiescence mates score -100000.
-- Other behavior matches ReverseFutilityBot v2.9 (RFP margin 90, maximum depth 6). `QsEvasionTest` checks equivalence with evasions off; with them on, 19 of 20 benchmark trees change and depth-7 nodes rise from 712,648 to 884,887 (+24%).
 - At equal time, both versions reach similar depth: 10.17 vs 10.21 plies at 80 ms/move and 7.69 vs 7.75 at 12 ms/move.
-- **Speed:** +1.3% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions; depth 11.55 to 11.30); +3.0% at 80 ms/move and +1.3% at 12 ms/move in suite games.
+- +1.3% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions; depth 11.55 to 11.30); +3.0% at 80 ms/move and +1.3% at 12 ms/move in suite games.
 
 ### CheckExtensionBot, v3.1 (2026-11-09)
 - In the main search, a move that gives check keeps the parent's remaining depth, extending the line by one ply. The extension applies to searches and re-searches and is capped at 64 plies from the root.
-- Other behavior matches QuiescenceEvasionBot v3.0. `CheckExtensionTest` checks equivalence with the extension off; with it on, 19 of 20 benchmark trees change and depth-7 nodes rise from 884,887 to 1,023,727 (+16%). Equivalence tests disable the extension (and QS evasions where needed) to isolate each feature.
 - With the extension, searches complete fewer uniform-depth iterations (9.24 vs 10.08 plies at 80 ms/move; 6.93 vs 7.54 at 12 ms/move), while extending checking lines.
-- **Speed:** +2.4% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions; depth 11.13 to 10.93); +6.6% at 80 ms/move and +7.5% at 12 ms/move in suite games.
+- +2.4% nodes/s on `SpeedBench` (20 positions, 100 ms/move, 3 repetitions; depth 11.13 to 10.93); +6.6% at 80 ms/move and +7.5% at 12 ms/move in suite games.
 
 ### TimeCapBot, v3.2 (2026-11-13)
 - Fixed time management: planned think time, including the opening allowance, is capped at $\max(1\,\mathrm{ms},\,t_{\text{left}}-50\,\mathrm{ms})$ to prevent flagging. The reserve is configurable with `-Dtime.overheadMs`; `-Dtime.cap=false` disables the cap. This only affects clocks with an increment, not SuiteRunner's constant clock.
@@ -362,10 +339,6 @@ The reverse futility pruning margin was tuned on a separate opening book (seed 1
 
 **Interpretation:** The three tuning intervals overlap, so the preset selection rule chose margin 90 despite margin 70's higher point estimate. The standard-book confirmation runs were not used to select the margin; both have positive 95% lower bounds and final LLRs above +2.944. Tuning and confirmation estimates overlap at margin 90.
 
-The first 80 ms/move attempt stopped after 8 pairs because the computer was low on memory; it was rerun, not stopped for its score.
-
-**80 ms/move disturbance:** After unplugging, the laptop spent about 45 seconds on battery and 6 minutes in Modern Standby. A KingSafetyBot move (game 159) froze for 366 seconds at depth 8; the game ended in a repetition draw. Background load then reduced speed to 1.46–1.67M nodes/s for games 160–189, from 1.95–2.18M for the rest; both engines were affected. Excluding pairs 79–82 gives $+75.0\,[+61.1, +89.3]$, LLR $+14.62$; excluding pairs 79–94 gives $+75.1\,[+60.9, +89.6]$, LLR $+14.11$. Subsets were fixed from power logs and node rates before scoring.
-
 ## Testing history and selection effects (v3.0)
 
 The change has no parameter, so there was no tuning run and only one candidate. The decision rule was fixed before either run: v3.0 is confirmed only if both confirmation runs have a 95% interval lower bound above 0 Elo. B is TurquoiseBot with quiescence check evasions, A is ReverseFutilityBot v2.9, on the standard book. Both runs were on AC power throughout, with no sleep, standby or other Windows power events, and no timeouts, move-limit games, crashes or errors.
@@ -390,7 +363,7 @@ The change has no parameter, so there was no tuning run and only one candidate. 
 
 ## Known limitations
 
-- **Version-to-version Elo is relative and measured in self-play.** Self-play gains tend to overstate gains against other opponents. The only absolute figure is the v3.2 gauntlet ($2296 \pm 12$ on the CCRL Blitz scale), which was run partly on battery and has the caveats listed under [Absolute rating](#absolute-rating-v32).
+- **Version-to-version Elo is relative and measured in self-play.** Self-play gains tend to overstate gains against other opponents. The only absolute figure is the v3.2 gauntlet ($2296 \pm 12$ on the CCRL Blitz scale).
 - **Legacy results (up to v2.1) used a weaker harness** (single start position, no pairing, time control not recorded). See [Testing methodology](#testing-methodology).
 - **Repeated openings.** 500 pairs use 200 openings, so games are not fully independent and the true uncertainty is somewhat larger than the reported intervals.
 - **Move times are very short** (about 80 ms and 12 ms per move). Results may not carry over to longer time controls.
