@@ -175,7 +175,7 @@ Version-to-version results use `SuiteRunner`, where engine B (the candidate) pla
 
 - Score: $S = \frac{W + D/2}{N}$; Elo: $E = 400\log_{10}\left(\frac{S}{1-S}\right)$.
 - From v2.5 onward, 95% Elo intervals use the variance of per-pair scores (0 to 2). Legacy results use per-game trinomial variance because they have no paired games.
-- LOS (likelihood of superiority) ignores draws: $\operatorname{LOS} = \Phi\left(\frac{W-L}{\sqrt{W+L}}\right)$.
+- LOS (likelihood of superiority) ignores draws: $\Phi\left(\frac{W-L}{\sqrt{W+L}}\right)$.
 - SPRT uses a pentanomial GSPRT on pair scores: $H_0\colon E\le 0$, $H_1\colon E\ge 10$, $\alpha=\beta=0.05$, with LLR bounds $\pm 2.944$. The full sample is always played (`SPRT_STOP_EARLY = false`), so the final LLR is reported. A first-crossing verdict is optimistic because bounds are checked after every pair.
 
 **Hardware:** Intel Core Ultra 7 256V laptop.
